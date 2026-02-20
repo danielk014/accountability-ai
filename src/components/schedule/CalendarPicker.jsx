@@ -66,16 +66,17 @@ export default function CalendarPicker({ selectedDate, onSelectDate }) {
 
           <div className="grid grid-cols-7 gap-1 mb-2">
             {DAYS_SHORT.map(day => (
-              <div key={day} className="text-center text-xs font-medium text-slate-400 py-2">
+              <div key={day} className="w-9 text-center text-xs font-medium text-slate-400 py-2">
                 {day}
               </div>
             ))}
           </div>
 
           <div className="grid grid-cols-7 gap-2">
-            {daysInMonth.map((day, i) => {
+            {allDays.map((day, i) => {
               const isSelected = isSameDay(day, selectedDate || new Date());
               const isToday = isSameDay(day, new Date());
+              const isCurrentMonth = day.getMonth() === baseMonth.getMonth();
 
               return (
                 <button
@@ -84,9 +85,10 @@ export default function CalendarPicker({ selectedDate, onSelectDate }) {
                     onSelectDate(day);
                     setOpen(false);
                   }}
+                  disabled={!isCurrentMonth}
                   className={`
                     h-9 w-9 rounded-lg text-xs font-medium transition-all
-                    ${isSelected ? "bg-indigo-600 text-white" : "text-slate-700 hover:bg-slate-100"}
+                    ${isSelected ? "bg-indigo-600 text-white" : isCurrentMonth ? "text-slate-700 hover:bg-slate-100" : "text-slate-300"}
                     ${isToday && !isSelected ? "border border-indigo-300" : ""}
                   `}
                 >
