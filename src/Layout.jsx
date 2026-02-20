@@ -6,9 +6,9 @@ import { LayoutDashboard, MessageCircle, BarChart3, ListChecks, CalendarDays, Sh
 import { cn } from "@/lib/utils";
 
 const navItems = [
+  { name: "Chat", icon: MessageCircle, page: "Chat" },
   { name: "Dashboard", icon: LayoutDashboard, page: "Dashboard" },
   { name: "Schedule", icon: CalendarDays, page: "Schedule" },
-  { name: "Chat", icon: MessageCircle, page: "Chat" },
   { name: "Habits", icon: ListChecks, page: "Habits" },
   { name: "Progress", icon: BarChart3, page: "Progress" },
   { name: "Admin", icon: Shield, page: "Admin", adminOnly: true },
