@@ -185,16 +185,23 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
               const done = completedIds.has(task.id);
               const color = CATEGORY_COLORS[task.category] || CATEGORY_COLORS.other;
               return (
-                <button
+                <div
                   key={task.id}
-                  onClick={() => onToggle(task, date)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${
-                    done ? "opacity-50 line-through bg-slate-50 border-slate-200 text-slate-400" : color
+                  className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${
+                    done ? "opacity-50 bg-slate-50 border-slate-200 text-slate-400" : color
                   }`}
                 >
-                  {done ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : <Circle className="w-3.5 h-3.5" />}
-                  {task.name}
-                </button>
+                  <button onClick={() => onToggle(task, date)} className="flex items-center gap-1.5">
+                    {done ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : <Circle className="w-3.5 h-3.5" />}
+                    <span className={done ? "line-through" : ""}>{task.name}</span>
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onRemoveTask?.(task); }}
+                    className="opacity-0 group-hover:opacity-60 hover:!opacity-100 p-0.5 rounded-full hover:bg-black/10 transition-opacity"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
               );
             })}
           </div>
