@@ -76,8 +76,15 @@ export default function Chat() {
     await base44.agents.addMessage(conv, { role: "user", content });
   };
 
-  // Filter out system messages for display
-  const displayMessages = messages.filter(m => m.role !== "system");
+  // Filter out system messages and the hidden proactive check-in prompt
+  const HIDDEN_PROMPTS = [
+    "I just opened the app.",
+    "Hi! I'm opening the app for the first time.",
+  ];
+  const displayMessages = messages.filter(m =>
+    m.role !== "system" &&
+    !(m.role === "user" && HIDDEN_PROMPTS.some(p => m.content?.startsWith(p)))
+  );
 
   if (isInitializing) {
     return (
