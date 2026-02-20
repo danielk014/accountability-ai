@@ -46,7 +46,7 @@ export default function Habits() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       setShowForm(false);
-      toast.success("Habit added!");
+      toast.success("Task added!");
     },
   });
 
@@ -56,7 +56,7 @@ export default function Habits() {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       setEditingTask(null);
       setShowForm(false);
-      toast.success("Habit updated!");
+      toast.success("Task updated!");
     },
   });
 
@@ -65,7 +65,7 @@ export default function Habits() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       setDeleteId(null);
-      toast.success("Habit removed.");
+      toast.success("Task removed.");
     },
   });
 
