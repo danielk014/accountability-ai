@@ -17,39 +17,129 @@ export default function Chat() {
   const messagesEndRef = useRef(null);
   const checkinSentRef = useRef(false);
 
-  // Determine which proactive check-in slot (0=morning, 1=midday, 2=evening)
-  function getCheckinSlot(hour) {
-    if (hour >= 5 && hour < 12) return 0;
-    if (hour >= 12 && hour < 17) return 1;
-    return 2;
+  function shouldSendBriefing(hour) {
+    return hour >= 5 && hour < 12;
   }
 
-  function getProactivePrompt(slot) {
-    if (slot === 0) {
-      return "SYSTEM_PROACTIVE_MORNING: Good morning check-in. Look at all my tasks scheduled for today. Figure out from my schedule what I'll likely be doing this morning (gym? work? errands?). Then send me a fun, upbeat, friendly morning message like a best friend would — reference what's on my agenda specifically, hype me up, and ask if I need help with anything today. Keep it short, playful, and warm. No bullet points, just talk to me like a friend.";
-    } else if (slot === 1) {
-      return "SYSTEM_PROACTIVE_MIDDAY: Midday check-in. Look at my tasks for today and check which ones are done vs still pending. Based on my schedule, figure out what I'm probably doing right now (at work? lunch? gym?). Send me a friendly midday message — acknowledge what I might be up to, celebrate anything I've already knocked out, and give me a little nudge on what's still ahead. Playful, encouraging, like a friend texting me. Ask if I need any help or if anything feels overwhelming. Keep it conversational and short.";
-    } else {
-      return "SYSTEM_PROACTIVE_EVENING: Evening check-in. Read all my tasks for today and my completions. Give me a warm, friendly end-of-day message — like a friend asking how my day went. Celebrate what I crushed, gently mention anything I missed without making me feel bad, and ask how I'm genuinely feeling. Ask if there's anything I want to talk through or need help with tonight. Maybe mention something to look forward to tomorrow if I have tasks. Short, warm, like a real person who cares.";
-    }
+  function shouldSendEveningCheckin(hour) {
+    return hour >= 21; // 9pm
   }
 
-  // Load or create conversation — send proactive check-in up to 3x per day (morning/midday/evening)
+  async function generateBriefingPrompt() {
+    const user = await base44.auth.me();
+    const profiles = await base44.entities.UserProfile.filter({ created_by: user.email });
+    const profile = profiles[0];
+    
+    const tasks = await base44.entities.Task.filter({ created_by: user.email });
+    const today = new Date().toISOString().split("T")[0];
+    
+    // Get tasks for today
+    const todaysTasks = tasks.filter(task => {
+      if (!task.is_active) return false;
+      const dayOfWeek = new Date().toLocaleDateString("en-US", { weekday: "lowercase" });
+      
+      if (task.frequency === "once" && task.scheduled_date === today) return true;
+      if (task.frequency === "daily") return true;
+      if (task.frequency === "weekdays" && !["saturday", "sunday"].includes(dayOfWeek)) return true;
+      if (task.frequency === "weekends" && ["saturday", "sunday"].includes(dayOfWeek)) return true;
+      if (task.frequency === dayOfWeek) return true;
+      return false;
+    }).sort((a, b) => (a.scheduled_time || "").localeCompare(b.scheduled_time || ""));
+
+    const filesList = profile?.context_files?.map(f => `- ${f.name}`).join("\n") || "No context files";
+    const goalsList = profile?.goals?.join("\n") || "No goals set yet";
+    
+    return `SYSTEM_DAILY_BRIEFING: You are presenting the user's Daily Briefing for today. Start with an upbeat, energizing greeting. Then:
+
+1. **Today's Focus**: Summarize their top 1-3 priorities for the day based on their:
+   - Main Goals: ${goalsList}
+   - Context Files uploaded: ${filesList}
+   - Scheduled Tasks: ${todaysTasks.map(t => `${t.name} (${t.category})`).join(", ") || "No tasks scheduled"}
+
+2. **Your AI Personality**: Keep this in mind when responding: "${profile?.ai_personality || "Be a supportive, encouraging accountability partner"}"
+
+3. **Suggested Focus Tasks**: Pick 1-3 tasks from today's schedule that would have the most impact. Explain why each one matters.
+
+4. **Quick Tip**: Give one actionable piece of advice for tackling today successfully.
+
+Keep it concise, friendly, and motivating. Make them feel ready to crush the day. No bullet points in the main message—just natural, conversational language like a friend who knows them well.`;
+  }
+
+  async function generateEveningCheckinPrompt() {
+    const user = await base44.auth.me();
+    const today = new Date().toISOString().split("T")[0];
+    
+    const completions = await base44.entities.TaskCompletion.filter({ 
+      created_by: user.email,
+      completed_date: today
+    });
+    
+    const tasks = await base44.entities.Task.filter({ created_by: user.email });
+    
+    const todaysTasks = tasks.filter(task => {
+      if (!task.is_active) return false;
+      const dayOfWeek = new Date().toLocaleDateString("en-US", { weekday: "lowercase" });
+      
+      if (task.frequency === "once" && task.scheduled_date === today) return true;
+      if (task.frequency === "daily") return true;
+      if (task.frequency === "weekdays" && !["saturday", "sunday"].includes(dayOfWeek)) return true;
+      if (task.frequency === "weekends" && ["saturday", "sunday"].includes(dayOfWeek)) return true;
+      if (task.frequency === dayOfWeek) return true;
+      return false;
+    });
+
+    const completedCount = completions.length;
+    const totalCount = todaysTasks.length;
+    const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+    return `SYSTEM_EVENING_CHECKIN: Evening check-in time! Review their day and provide genuine, warm support:
+
+Today's Summary:
+- Completed: ${completedCount}/${totalCount} tasks (${completionRate}%)
+- Tasks done: ${completions.map(c => c.task_name).join(", ") || "None yet"}
+- Incomplete: ${todaysTasks.filter(t => !completions.find(c => c.task_id === t.id)).map(t => t.name).join(", ") || "All done!"}
+
+Please:
+1. **Celebrate their wins**: Acknowledge what they DID accomplish, no matter how small
+2. **Be honest but kind**: If they didn't hit all their goals, validate that and ask what got in the way
+3. **Reflect together**: Ask how they're feeling about today. Are they energized? Tired? Proud?
+4. **Look ahead**: Ask if there's anything on their mind for tomorrow
+5. **Closing thought**: End with encouragement or a motivational thought
+
+Be like a supportive friend wrapping up the day with them. Warm, genuine, no judgment. Ask follow-up questions and really listen.`;
+  }
+
+  // Load or create conversation — send briefing in morning and check-in at 9pm
   useEffect(() => {
     async function init() {
-      // Guard: never send more than one check-in per page load
+      // Guard: never send more than one message per page load
       if (checkinSentRef.current) return;
 
       const today = new Date().toISOString().split("T")[0];
       const hour = new Date().getHours();
-      const slot = getCheckinSlot(hour);
-      const storageKey = `last_checkin_${today}_slot${slot}`;
+      const isMorning = shouldSendBriefing(hour);
+      const isEvening = shouldSendEveningCheckin(hour);
+      
+      const briefingKey = `last_briefing_${today}`;
+      const eveningKey = `last_evening_checkin_${today}`;
 
-      // Determine up-front whether we should send a check-in
-      const shouldCheckin = !localStorage.getItem(storageKey);
+      // Determine which message to send
+      let shouldSendMessage = false;
+      let messageContent = "";
+      let storageKey = "";
+
+      if (isMorning && !localStorage.getItem(briefingKey)) {
+        shouldSendMessage = true;
+        messageContent = await generateBriefingPrompt();
+        storageKey = briefingKey;
+      } else if (isEvening && !localStorage.getItem(eveningKey)) {
+        shouldSendMessage = true;
+        messageContent = await generateEveningCheckinPrompt();
+        storageKey = eveningKey;
+      }
 
       // Mark guard immediately so re-mounts never double-fire
-      if (shouldCheckin) {
+      if (shouldSendMessage) {
         checkinSentRef.current = true;
         localStorage.setItem(storageKey, "1");
       }
@@ -66,11 +156,11 @@ export default function Chat() {
         setMessages(conv.messages || []);
         setIsInitializing(false);
 
-        if (shouldCheckin) {
+        if (shouldSendMessage) {
           setIsLoading(true);
           await base44.agents.addMessage(conv, {
             role: "user",
-            content: getProactivePrompt(slot),
+            content: messageContent,
           });
         }
       } else {
@@ -131,13 +221,12 @@ export default function Chat() {
     });
   };
 
-  // Filter out system messages and the hidden proactive check-in prompt
+  // Filter out system messages and hidden prompts
   const HIDDEN_PROMPTS = [
     "I just opened the app.",
     "Hi! I'm opening the app for the first time.",
-    "SYSTEM_PROACTIVE_MORNING:",
-    "SYSTEM_PROACTIVE_MIDDAY:",
-    "SYSTEM_PROACTIVE_EVENING:",
+    "SYSTEM_DAILY_BRIEFING:",
+    "SYSTEM_EVENING_CHECKIN:",
     "[AI Coaching]:",
   ];
   const displayMessages = messages.filter(m => {
