@@ -18,7 +18,7 @@ export default function Chat() {
   const checkinSentRef = useRef(false);
 
   function shouldSendBriefing(hour) {
-    return hour >= 5 && hour < 12;
+    return hour === 9;
   }
 
   function shouldSendEveningCheckin(hour) {
