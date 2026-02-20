@@ -135,7 +135,7 @@ export default function Schedule() {
       await base44.functions.invoke("getCalendarEvents");
       toast.success("Calendar synced!");
     } catch (error) {
-      toast.error("Failed to sync calendar");
+      toast.info("Please set up Gmail in your account settings to sync calendar");
     } finally {
       setIsSyncingCalendar(false);
     }
@@ -173,9 +173,10 @@ export default function Schedule() {
             variant="outline"
             size="sm"
             className="rounded-xl"
+            title="Connect your Gmail account in Settings to sync calendar"
           >
             <RefreshCw className={`w-4 h-4 ${isSyncingCalendar ? "animate-spin" : ""}`} />
-            <span className="hidden sm:inline ml-1">Sync Calendar</span>
+            <span className="hidden sm:inline ml-1">Sync Gmail Calendar</span>
           </Button>
 
           {/* View toggle */}
