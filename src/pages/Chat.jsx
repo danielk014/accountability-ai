@@ -137,10 +137,9 @@ export default function Chat() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)]">
-      {/* About Me panel — always visible at top */}
-      <AboutMePanel />
-
+    <div className="flex h-[calc(100vh-64px)]">
+      {/* Main chat area */}
+      <div className="flex flex-col flex-1 min-w-0">
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-6">
         <div className="max-w-3xl mx-auto space-y-4">
