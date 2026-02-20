@@ -14,12 +14,17 @@ export default function Progress() {
     queryFn: () => base44.entities.Task.list(),
   });
 
+  const { data: completions = [], isLoading: loadingCompletions } = useQuery({
+    queryKey: ["completions"],
+    queryFn: () => base44.entities.TaskCompletion.list("-completed_date", 500),
+  });
+
   const { data: sleep = [], isLoading: loadingSleep } = useQuery({
     queryKey: ["sleep"],
     queryFn: () => base44.entities.Sleep.list("-date", 100),
   });
 
-  if (loadingTasks || loadingSleep) {
+  if (loadingTasks || loadingSleep || loadingCompletions) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
