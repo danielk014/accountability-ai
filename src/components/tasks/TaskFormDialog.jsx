@@ -30,14 +30,30 @@ const FREQUENCIES = [
   { value: "sunday", label: "Sunday" },
 ];
 
-export default function TaskFormDialog({ open, onOpenChange, onSubmit, task }) {
+export default function TaskFormDialog({ open, onOpenChange, onSubmit, task, defaultDate }) {
+  const today = defaultDate || new Date().toISOString().split("T")[0];
   const [formData, setFormData] = useState(task || {
     name: "",
     description: "",
     scheduled_time: "",
-    frequency: "daily",
+    scheduled_date: today,
+    frequency: "once",
     category: "personal",
   });
+
+  // Reset form when dialog opens
+  React.useEffect(() => {
+    if (open) {
+      setFormData(task || {
+        name: "",
+        description: "",
+        scheduled_time: "",
+        scheduled_date: defaultDate || new Date().toISOString().split("T")[0],
+        frequency: "once",
+        category: "personal",
+      });
+    }
+  }, [open]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -49,9 +65,6 @@ export default function TaskFormDialog({ open, onOpenChange, onSubmit, task }) {
       best_streak: task?.best_streak || 0,
       total_completions: task?.total_completions || 0,
     });
-    if (!task) {
-      setFormData({ name: "", description: "", scheduled_time: "", frequency: "daily", category: "personal" });
-    }
   };
 
   return (
