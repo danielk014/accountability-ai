@@ -60,6 +60,14 @@ export default function Schedule() {
     },
   });
 
+  const removeTaskMutation = useMutation({
+    mutationFn: async (task) => {
+      await base44.entities.Task.update(task.id, { is_active: false });
+      toast.success(`Removed "${task.name}"`);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tasks"] }),
+  });
+
   const activeTasks = tasks.filter((t) => t.is_active !== false);
 
   const navigate = (dir) => {
