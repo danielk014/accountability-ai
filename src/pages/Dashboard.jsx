@@ -175,35 +175,6 @@ export default function Dashboard() {
         )}
       </div>
 
-      <WeeklyChart completions={completions} tasks={tasks} />
-
-      {/* Upcoming tasks (next 7 days) */}
-      <div className="mt-8">
-        <h2 className="text-lg font-bold text-slate-800 mb-4">Upcoming (Next 7 Days)</h2>
-        {upcomingTasks.length > 0 ? (
-          <div className="space-y-2 mb-8">
-            {upcomingTasks.map((item, idx) => (
-              <div
-                key={`${item.task.id}-${item.date}-${idx}`}
-                className="flex items-center gap-3 p-4 rounded-xl bg-white border border-slate-200 hover:shadow-sm transition-all"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-800">{item.task.name}</p>
-                  <p className="text-xs text-slate-500 mt-1">{format(item.dateObj, "EEEE, MMMM d")}</p>
-                </div>
-                {item.task.scheduled_time && (
-                  <span className="text-xs font-medium text-slate-400 flex-shrink-0">{item.task.scheduled_time}</span>
-                )}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8 text-slate-400">
-            <p className="text-sm">No upcoming tasks in the next 7 days</p>
-          </div>
-        )}
-      </div>
-
       {/* Floating add button */}
       <button
         onClick={() => setShowForm(true)}
