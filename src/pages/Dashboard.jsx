@@ -22,18 +22,18 @@ export default function Dashboard() {
   });
 
   const { data: tasks = [] } = useQuery({
-    queryKey: ["tasks"],
-    queryFn: () => base44.entities.Task.list(),
+    queryKey: ["tasks", user?.email],
+    queryFn: () => user?.email ? base44.entities.Task.filter({ created_by: user.email }) : [],
   });
 
   const { data: completions = [] } = useQuery({
-    queryKey: ["completions"],
-    queryFn: () => base44.entities.TaskCompletion.list("-completed_date", 500),
+    queryKey: ["completions", user?.email],
+    queryFn: () => user?.email ? base44.entities.TaskCompletion.filter({ created_by: user.email }, "-completed_date", 500) : [],
   });
 
   const { data: profiles = [] } = useQuery({
-    queryKey: ["profile"],
-    queryFn: () => base44.entities.UserProfile.list(),
+    queryKey: ["profile", user?.email],
+    queryFn: () => user?.email ? base44.entities.UserProfile.filter({ created_by: user.email }) : [],
   });
 
   const profile = profiles[0];
