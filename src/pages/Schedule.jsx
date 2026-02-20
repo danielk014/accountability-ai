@@ -16,14 +16,19 @@ export default function Schedule() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const queryClient = useQueryClient();
 
+  const { data: user } = useQuery({
+    queryKey: ["me"],
+    queryFn: () => base44.auth.me(),
+  });
+
   const { data: tasks = [] } = useQuery({
-    queryKey: ["tasks"],
-    queryFn: () => base44.entities.Task.list(),
+    queryKey: ["tasks", user?.email],
+    queryFn: () => user?.email ? base44.entities.Task.filter({ created_by: user.email }) : [],
   });
 
   const { data: completions = [] } = useQuery({
-    queryKey: ["completions"],
-    queryFn: () => base44.entities.TaskCompletion.list("-completed_date", 500),
+    queryKey: ["completions", user?.email],
+    queryFn: () => user?.email ? base44.entities.TaskCompletion.filter({ created_by: user.email }, "-completed_date", 500) : [],
   });
 
   const today = format(new Date(), "yyyy-MM-dd");
