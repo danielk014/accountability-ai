@@ -8,10 +8,8 @@ import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
 import GreetingHeader from "../components/dashboard/GreetingHeader";
-import StatsRow from "../components/dashboard/StatsRow";
 import TaskCard from "../components/dashboard/TaskCard";
 import TaskFormDialog from "../components/tasks/TaskFormDialog";
-import WeeklyChart from "../components/progress/WeeklyChart";
 
 export default function Dashboard() {
   const [showForm, setShowForm] = useState(false);
