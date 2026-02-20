@@ -83,10 +83,10 @@ export default function SleepChart({ sleepData }) {
   const handleOpenDialog = (item) => {
     if (item?.id) {
       setEditingId(item.id);
-      setFormData({ date: item.date, hours: item.hours, quality: item.quality });
+      setFormData({ date: item.date, hours: item.hours, sleep_time: item.sleep_time, quality: item.quality });
     } else {
       const today = format(new Date(), "yyyy-MM-dd");
-      setFormData({ date: today, hours: "", quality: "good" });
+      setFormData({ date: today, hours: "", sleep_time: "", quality: "good" });
       setEditingId(null);
     }
     setDialogOpen(true);
