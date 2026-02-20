@@ -134,38 +134,35 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
   }, []);
 
   const handleDrop = (e) => {
-    e.preventDefault();
-    const placedTaskId = e.dataTransfer.getData("placedTaskId");
-    const taskId = e.dataTransfer.getData("taskId");
-    const yPx = getGridTop(e.clientY);
+   e.preventDefault();
+   const placedTaskId = e.dataTransfer.getData("placedTaskId");
+   const taskId = e.dataTransfer.getData("taskId");
+   const yPx = getGridTop(e.clientY);
 
-    if (placedTaskId) {
-      // Moving an already-placed event
-      const offsetY = parseInt(e.dataTransfer.getData("dragOffsetY") || "0");
-      const desiredTop = Math.round((yPx - offsetY) / (SLOT_HEIGHT / 2)) * (SLOT_HEIGHT / 2);
-      const top = Math.max(0, desiredTop);
-      const height = SLOT_HEIGHT;
-      const newTop = resolveNoOverlap({ ...placedEvents }, placedTaskId, top, height);
-      
-      // Calculate the hour from the new top position
-      const newHour = Math.floor(newTop / SLOT_HEIGHT) + 6;
-      const newTime = String(newHour).padStart(2, '0') + ":00";
-      
-      setPlacedEvents(prev => ({ ...prev, [placedTaskId]: { top: newTop, height } }));
-      onDropTask?.(placedTaskId, newTime, height);
-    } else if (taskId) {
-      // Dropping a new task from sidebar
-      const snapped = Math.round(yPx / (SLOT_HEIGHT / 2)) * (SLOT_HEIGHT / 2);
-      const height = SLOT_HEIGHT;
-      setPlacedEvents(prev => {
-        const top = resolveNoOverlap(prev, taskId, snapped, height);
-        return { ...prev, [taskId]: { top, height } };
-      });
-      const hour = Math.floor(snapped / SLOT_HEIGHT) + 6;
-      const time = String(hour).padStart(2, '0') + ":00";
-      onDropTask?.(taskId, time, SLOT_HEIGHT);
-    }
-    setDragOver(null);
+   if (placedTaskId) {
+     // Moving an already-placed event
+     const offsetY = parseInt(e.dataTransfer.getData("dragOffsetY") || "0");
+     const desiredTop = Math.max(0, yPx - offsetY);
+     const height = SLOT_HEIGHT;
+     const newTop = resolveNoOverlap({ ...placedEvents }, placedTaskId, desiredTop, height);
+
+     // Calculate the hour from the new top position
+     const newHour = Math.floor(newTop / SLOT_HEIGHT) + 6;
+     const newTime = String(newHour).padStart(2, '0') + ":00";
+
+     setPlacedEvents(prev => ({ ...prev, [placedTaskId]: { top: newTop, height } }));
+     onDropTask?.(placedTaskId, newTime, height);
+   } else if (taskId) {
+     // Dropping a new task from sidebar
+     const snapped = Math.round(yPx / (SLOT_HEIGHT / 2)) * (SLOT_HEIGHT / 2);
+     const height = SLOT_HEIGHT;
+     const top = resolveNoOverlap({ ...placedEvents }, taskId, snapped, height);
+     setPlacedEvents(prev => ({ ...prev, [taskId]: { top, height } }));
+     const hour = Math.floor(top / SLOT_HEIGHT) + 6;
+     const time = String(hour).padStart(2, '0') + ":00";
+     onDropTask?.(taskId, time, SLOT_HEIGHT);
+   }
+   setDragOver(null);
   };
 
   const handleDragOver = (e) => {
