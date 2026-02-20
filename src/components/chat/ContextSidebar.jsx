@@ -85,33 +85,24 @@ function TextSection({ section, items, onAdd, onDelete, onUpdate }) {
 
 function PersonalitySection({ profile, saveMutation, queryClient }) {
   const [open, setOpen] = useState(true);
+  const [input, setInput] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
 
-  const PERSONALITIES = [
-    {
-      value: "gentle",
-      label: "Gentle Coach",
-      description: "Supportive and encouraging, celebrates small wins, uses gentle reminders"
-    },
-    {
-      value: "direct",
-      label: "Direct Coach",
-      description: "Straightforward and honest, tells it like it is, focuses on results"
-    },
-    {
-      value: "tough_love",
-      label: "Tough Love",
-      description: "Challenging and direct, pushes you hard, no excuses, high standards"
+  const currentPersonality = profile?.ai_personality || "";
+
+  const handleSave = () => {
+    if (input.trim()) {
+      if (profile?.id) {
+        saveMutation.mutate({ ai_personality: input.trim() });
+        setIsEditing(false);
+        toast.success("AI personality updated!");
+      }
     }
-  ];
+  };
 
-  const currentStyle = profile?.motivation_style || "direct";
-  const currentPersonality = PERSONALITIES.find(p => p.value === currentStyle);
-
-  const handleChange = (value) => {
-    if (profile?.id) {
-      saveMutation.mutate({ motivation_style: value });
-      toast.success("AI personality updated!");
-    }
+  const handleEdit = () => {
+    setInput(currentPersonality);
+    setIsEditing(true);
   };
 
   return (
@@ -126,7 +117,7 @@ function PersonalitySection({ profile, saveMutation, queryClient }) {
           </div>
           <div className="text-left">
             <p className="text-sm font-semibold text-slate-700">AI Personality</p>
-            <p className="text-xs text-slate-400">{currentPersonality?.label}</p>
+            <p className="text-xs text-slate-400">{currentPersonality ? "Custom set" : "Not set yet"}</p>
           </div>
         </div>
         {open ? <ChevronUp className="w-3.5 h-3.5 text-slate-300" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-300" />}
@@ -134,22 +125,59 @@ function PersonalitySection({ profile, saveMutation, queryClient }) {
 
       {open && (
         <div className="px-4 pb-4 space-y-2">
-          {PERSONALITIES.map(p => (
+          {!isEditing && currentPersonality && (
+            <div className="bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 group">
+              <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">{currentPersonality}</p>
+              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity mt-2">
+                <button
+                  onClick={handleEdit}
+                  className="p-0.5 rounded hover:bg-indigo-50 text-slate-400 hover:text-indigo-500 transition"
+                >
+                  <Pencil className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => { if (profile?.id) { saveMutation.mutate({ ai_personality: "" }); toast.success("Cleared!"); } }}
+                  className="p-0.5 rounded hover:bg-red-50 text-slate-400 hover:text-red-500 transition"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {isEditing ? (
+            <div className="space-y-1.5">
+              <textarea
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                placeholder="Describe how the AI should behave. E.g. 'Be like a supportive best friend who celebrates my wins and gently pushes me when I need it'"
+                rows={4}
+                className="w-full text-xs rounded-lg border border-indigo-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white resize-none"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSave}
+                  disabled={!input.trim()}
+                  className="flex-1 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 disabled:opacity-30 transition flex items-center justify-center gap-1"
+                >
+                  <Check className="w-3 h-3" /> Save
+                </button>
+                <button
+                  onClick={() => setIsEditing(false)}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-500 hover:bg-slate-50 transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
             <button
-              key={p.value}
-              onClick={() => handleChange(p.value)}
-              className={`w-full text-left rounded-lg border-2 px-3 py-2.5 transition ${
-                currentStyle === p.value
-                  ? "border-indigo-500 bg-indigo-50"
-                  : "border-slate-200 bg-white hover:border-slate-300"
-              }`}
+              onClick={handleEdit}
+              className="w-full py-2 rounded-lg border border-dashed border-indigo-300 text-xs text-indigo-500 hover:bg-indigo-50 transition flex items-center justify-center gap-1.5"
             >
-              <p className={`text-sm font-semibold ${currentStyle === p.value ? "text-indigo-700" : "text-slate-700"}`}>
-                {p.label}
-              </p>
-              <p className="text-xs text-slate-500 mt-0.5">{p.description}</p>
+              <Plus className="w-3.5 h-3.5" /> {currentPersonality ? "Edit" : "Add personality"} description
             </button>
-          ))}
+          )}
         </div>
       )}
     </div>
