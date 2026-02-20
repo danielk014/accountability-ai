@@ -169,7 +169,7 @@ export default function Chat() {
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto mb-4">
                 <Zap className="w-8 h-8 text-white" />
               </div>
-              <h2 className="text-xl font-bold text-slate-800 mb-2">Your Accountability Partner</h2>
+              <h2 className="text-xl font-bold text-slate-800 mb-2">Accountable AI</h2>
               <p className="text-slate-500 max-w-md mx-auto text-sm">
                 Tell me about your goals, habits, and schedule. I'll help you stay on track, 
                 celebrate wins, and build consistency.

@@ -156,7 +156,7 @@ export default function FloatingChatBubble({ currentPageName }) {
                   <Zap className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-slate-800">Accountability Partner</p>
+                  <p className="text-sm font-bold text-slate-800">Accountable AI</p>
                   <p className="text-xs text-slate-400">Your AI coach</p>
                 </div>
               </div>
