@@ -70,6 +70,15 @@ export default function Schedule() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tasks"] }),
   });
 
+  const createTaskMutation = useMutation({
+    mutationFn: (data) => base44.entities.Task.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      setShowForm(false);
+      toast.success("Task added!");
+    },
+  });
+
   const activeTasks = tasks.filter((t) => t.is_active !== false);
 
   const navigate = (dir) => {
