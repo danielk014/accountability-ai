@@ -51,6 +51,7 @@ import Chat from './pages/Chat';
 import Dashboard from './pages/Dashboard';
 import Habits from './pages/Habits';
 import Progress from './pages/Progress';
+import Schedule from './pages/Schedule';
 import __Layout from './Layout.jsx';
 
 
@@ -59,6 +60,7 @@ export const PAGES = {
     "Dashboard": Dashboard,
     "Habits": Habits,
     "Progress": Progress,
+    "Schedule": Schedule,
 }
 
 export const pagesConfig = {
