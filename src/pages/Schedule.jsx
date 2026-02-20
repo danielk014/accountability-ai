@@ -162,18 +162,14 @@ export default function Schedule() {
           </div>
 
           {/* Navigation */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-xl h-9 w-9">
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
             <CalendarPicker selectedDate={currentDate} onSelectDate={setCurrentDate} />
-            {view === "day" && (
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-xl h-9 w-9">
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <Button variant="ghost" size="icon" onClick={() => navigate(1)} className="rounded-xl h-9 w-9">
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            )}
+            <Button variant="ghost" size="icon" onClick={() => navigate(1)} className="rounded-xl h-9 w-9">
+              <ChevronRight className="w-4 h-4" />
+            </Button>
           </div>
         </div>
       </div>
