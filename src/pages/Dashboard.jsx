@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import GreetingHeader from "../components/dashboard/GreetingHeader";
 import StatsRow from "../components/dashboard/StatsRow";
 import TaskCard from "../components/dashboard/TaskCard";
-import DailySchedule from "../components/dashboard/DailySchedule";
 import TaskFormDialog from "../components/tasks/TaskFormDialog";
 import WeeklyChart from "../components/progress/WeeklyChart";
 
