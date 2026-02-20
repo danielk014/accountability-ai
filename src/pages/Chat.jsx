@@ -299,13 +299,13 @@ export default function Chat() {
               )}
               <div className="flex-1 relative">
                 <MessageBubble message={msg} />
-                {!isSelectionMode && msg.role === "user" && (
+                {!isSelectionMode && (
                   <button
                     onClick={() => { setIsSelectionMode(true); handleToggleSelect(i.toString()); }}
-                    className="absolute top-0 right-0 p-1.5 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-600"
+                    className="absolute top-0 right-0 p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition"
                     title="Delete message"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 )}
               </div>
