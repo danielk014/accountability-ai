@@ -192,50 +192,54 @@ export default function SleepChart({ sleepData }) {
       </div>
 
       <div className="space-y-2">
-        {chartData.map((item) => (
-          <div
-            key={item.date}
-            className="flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-100 group hover:bg-slate-100 transition"
-          >
-            <div className="flex items-center gap-3 flex-1">
-              <span className="text-sm font-semibold text-slate-800 w-12">{item.day}</span>
-              {item.hours > 0 ? (
-                <div className="flex items-center gap-2 flex-1">
-                  <div className="flex-1 h-2 rounded-full bg-slate-200 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-violet-500"
-                      style={{ width: `${Math.min(item.hours / 10 * 100, 100)}%` }}
-                    />
+        {chartData.map((item) => {
+          const scoreColor = item.score >= 8 ? "text-emerald-600 bg-emerald-50" : item.score >= 6 ? "text-amber-600 bg-amber-50" : "text-red-600 bg-red-50";
+          return (
+            <div
+              key={item.date}
+              className="flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-100 group hover:bg-slate-100 transition"
+            >
+              <div className="flex items-center gap-3 flex-1">
+                <span className="text-sm font-semibold text-slate-800 w-12">{item.day}</span>
+                {item.hours > 0 ? (
+                  <div className="flex items-center gap-2 flex-1">
+                    <div className="flex-1 h-2 rounded-full bg-slate-200 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-violet-500"
+                        style={{ width: `${Math.min(item.hours / 10 * 100, 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-sm font-medium text-slate-700">{item.hours}h</span>
+                    {item.sleep_time && <span className="text-xs text-slate-500 px-2 py-1 rounded bg-white">{item.sleep_time}</span>}
+                    <span className={`text-xs font-semibold px-2 py-1 rounded ${scoreColor}`}>{item.score}/10</span>
                   </div>
-                  <span className="text-sm font-medium text-slate-700">{item.hours}h</span>
-                  <span className="text-xs text-slate-500 px-2 py-1 rounded bg-white">{item.quality}</span>
-                </div>
-              ) : (
-                <span className="text-xs text-slate-400">No data</span>
-              )}
-            </div>
-            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleOpenDialog(item)}
-                className="h-7 w-7 rounded"
-              >
-                <Plus className="w-3.5 h-3.5" />
-              </Button>
-              {item.id && (
+                ) : (
+                  <span className="text-xs text-slate-400">No data</span>
+                )}
+              </div>
+              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => deleteMutation.mutate(item.id)}
-                  className="h-7 w-7 rounded text-red-500 hover:text-red-600 hover:bg-red-50"
+                  onClick={() => handleOpenDialog(item)}
+                  className="h-7 w-7 rounded"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <Plus className="w-3.5 h-3.5" />
                 </Button>
-              )}
+                {item.id && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => deleteMutation.mutate(item.id)}
+                    className="h-7 w-7 rounded text-red-500 hover:text-red-600 hover:bg-red-50"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
