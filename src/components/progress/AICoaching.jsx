@@ -29,33 +29,34 @@ export default function AICoaching({ tasks, completions, sleep }) {
       const poorSleepDays = sleep.filter(s => s.hours < 6).length;
       const excellentSleep = sleep.filter(s => s.hours >= 8).length;
 
-      const prompt = `Analyze this user's habit and sleep data and provide personalized AI coaching insights:
+      const prompt = `You are a brutally honest but deeply motivating coach with the intensity of David Goggins, the charisma of Joe Rogan, and the strategic mind of Alex Hormozi. Your job is to read between the lines of this person's data and tell them EXACTLY what's happening - no sugar coating, no fluff. But also remind them of their potential and fire them up to take action.
 
-**Habits Data:**
+**Their Data:**
 - Active Habits: ${tasks.filter(t => t.is_active !== false).length}
-- Task Completion Rate (last 7 days): ${Math.round(completionRate)}%
-- Top Streaks: ${tasks.map(t => `"${t.name}" (${t.streak || 0} days)`).join(", ") || "None yet"}
-- Habits by Category: ${JSON.stringify(tasks.reduce((acc, t) => {
+- Completion Rate: ${Math.round(completionRate)}% (out of 100%)
+- Streaks: ${tasks.map(t => `"${t.name}" (${t.streak || 0} days)`).join(", ") || "None established yet"}
+- Habit Breakdown: ${JSON.stringify(tasks.reduce((acc, t) => {
   acc[t.category] = (acc[t.category] || 0) + 1;
   return acc;
 }, {}))}
 
-**Sleep Data:**
-- Average Sleep: ${avgSleep} hours
-- Nights with Poor Sleep (<6h): ${poorSleepDays}
-- Nights with Excellent Sleep (8+h): ${excellentSleep}
-- Total Sleep Entries: ${sleep.length}
+**Sleep Reality:**
+- Average: ${avgSleep} hours (${avgSleep < 7 ? "INSUFFICIENT" : avgSleep < 8 ? "Below optimal" : "Solid"})
+- Poor nights (<6h): ${poorSleepDays} 
+- Great nights (8+h): ${excellentSleep}
+- Total tracked: ${sleep.length}
 
-${profile?.[0]?.about_me_notes?.length > 0 ? `**User Context:** ${profile[0].about_me_notes.join(", ")}` : ""}
+${profile?.[0]?.about_me_notes?.length > 0 ? `**Context:** ${profile[0].about_me_notes.join(", ")}` : ""}
 
-Please provide:
-1. **Key Insights**: 2-3 observations about their habits and sleep patterns
-2. **Habit Adjustments**: Specific suggestions to improve consistency
-3. **Burnout Risk Assessment**: Check if they're doing too much or need more balance
-4. **Motivational Advice**: Personalized encouragement based on their performance
-5. **Action Items**: 2-3 concrete steps they can take this week
+Now give them the REAL talk:
+1. **The Honest Assessment**: What's actually happening here? Are they coasting? Crushing it? Lying to themselves?
+2. **The Hard Truth**: What's the gap between where they are and where they want to be? What are they actually tolerating?
+3. **Why It Matters**: Remind them what this REALLY costs them - in their health, potential, relationships, legacy. Don't be soft.
+4. **The Path Forward**: 3 specific moves THIS WEEK that will shift everything. Make it crystal clear.
+5. **The Fire**: Send them off with a message that makes them want to GET UP and DO THE WORK.
 
-Be concise, specific, and actionable.`;
+Be direct. Be intense. Be honest about the struggle. But make them FEEL their potential. Use their data to personalize it - make it real, not generic.`;
+
 
       const response = await base44.integrations.Core.InvokeLLM({
         prompt,
