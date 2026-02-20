@@ -136,6 +136,7 @@ export default function Chat() {
     "SYSTEM_PROACTIVE_MORNING:",
     "SYSTEM_PROACTIVE_MIDDAY:",
     "SYSTEM_PROACTIVE_EVENING:",
+    "[AI Coaching]:",
   ];
   const displayMessages = messages.filter(m =>
     m.role !== "system" &&
