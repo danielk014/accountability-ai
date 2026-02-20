@@ -77,10 +77,11 @@ export default function TimeActivityChart({ tasks, completions = [] }) {
   });
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-4">
+      {/* Week Navigation */}
+      <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-slate-800">Last 7 Days Activity</h2>
+          <h2 className="text-lg font-bold text-slate-800">Last 7 Days</h2>
           <p className="text-xs text-slate-500 mt-1">
             {format(weekStart, "MMM d")} – {format(addDays(weekStart, 6), "MMM d")}
           </p>
@@ -90,82 +91,79 @@ export default function TimeActivityChart({ tasks, completions = [] }) {
             variant="ghost"
             size="icon"
             onClick={() => setWeekOffset(weekOffset - 1)}
-            className="rounded-lg h-8 w-8"
+            className="rounded-lg h-9 w-9"
           >
             <ChevronLeft className="w-4 h-4" />
           </Button>
           <Button
             variant="ghost"
-            size="icon"
             onClick={() => setWeekOffset(0)}
-            className="rounded-lg h-8 w-8 text-xs"
+            className="rounded-lg text-xs h-9"
           >
-            Today
+            This week
           </Button>
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setWeekOffset(weekOffset + 1)}
             disabled={weekOffset >= 0}
-            className="rounded-lg h-8 w-8"
+            className="rounded-lg h-9 w-9"
           >
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
       </div>
 
-      <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-          <XAxis dataKey="day" stroke="#94a3b8" style={{ fontSize: "12px" }} />
-          <YAxis stroke="#94a3b8" style={{ fontSize: "12px" }} label={{ value: "Tasks", angle: -90, position: "insideLeft" }} />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: "#fff",
-              border: "1px solid #e2e8f0",
-              borderRadius: "8px",
-              fontSize: "12px",
-            }}
-          />
-          {HOURS.map((hour) => (
-            <Bar
-              key={hour}
-              dataKey={hour}
-              stackId="tasks"
-              fill={CATEGORY_COLORS[Object.keys(CATEGORY_COLORS)[hour % Object.keys(CATEGORY_COLORS).length]]}
-              radius={[4, 4, 0, 0]}
-              name={`${hour}:00`}
-            />
-          ))}
-        </BarChart>
-      </ResponsiveContainer>
+      {/* Daily breakdown */}
+      <div className="space-y-3">
+        {chartData.map((day, idx) => (
+          <div key={day.date} className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            <button
+              onClick={() => setExpandedDay(expandedDay === day.date ? null : day.date)}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition"
+            >
+              <div className="text-left">
+                <p className="text-sm font-semibold text-slate-800">{day.day}</p>
+                <p className="text-xs text-slate-500">{format(addDays(weekStart, idx), "MMM d, yyyy")}</p>
+              </div>
+              <ChevronDown
+                className={`w-4 h-4 text-slate-400 transition-transform ${
+                  expandedDay === day.date ? "rotate-180" : ""
+                }`}
+              />
+            </button>
 
-      <div className="mt-6 grid grid-cols-2 gap-3">
-        <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
-          <p className="text-xs text-slate-600 font-medium">Most Busy Hour</p>
-          <p className="text-lg font-bold text-slate-800 mt-1">
-            {(() => {
-              let maxHour = 0;
-              let maxCount = 0;
-              HOURS.forEach(h => {
-                const total = chartData.reduce((sum, day) => sum + (day[h] || 0), 0);
-                if (total > maxCount) {
-                  maxCount = total;
-                  maxHour = h;
-                }
-              });
-              return `${maxHour}:00`;
-            })()}
-          </p>
-        </div>
-        <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
-          <p className="text-xs text-slate-600 font-medium">Total Activities</p>
-          <p className="text-lg font-bold text-slate-800 mt-1">
-            {chartData.reduce((sum, day) => {
-              return sum + HOURS.reduce((daySum, h) => daySum + (day[h] || 0), 0);
-            }, 0)}
-          </p>
-        </div>
+            {expandedDay === day.date && (
+              <div className="border-t border-slate-100 px-4 py-3 space-y-2">
+                {HOURS.map(hour => {
+                  const tasksAtHour = day.tasks[hour] || [];
+                  const hasActivity = tasksAtHour.length > 0;
+                  return (
+                    <div key={hour} className="space-y-1">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-xs font-medium text-slate-500 w-12">{hour}:00</span>
+                        {hasActivity ? (
+                          <div className="flex flex-wrap gap-1 flex-1">
+                            {tasksAtHour.map(task => (
+                              <span
+                                key={task.id}
+                                className={`text-xs px-2 py-1 rounded-full ${CATEGORY_LABEL_COLORS[task.category]}`}
+                              >
+                                {task.name}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-300">No activities</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
