@@ -142,8 +142,6 @@ export default function Dashboard() {
         completedToday={completedToday}
       />
 
-      <StatsRow tasks={tasks} completions={completions} />
-
       {/* Today's tasks */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-bold text-slate-800">Today's tasks</h2>
