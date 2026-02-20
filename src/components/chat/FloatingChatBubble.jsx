@@ -147,7 +147,7 @@ export default function FloatingChatBubble({ currentPageName }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="fixed bottom-24 left-6 w-96 h-[500px] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col z-40"
+            className="fixed bottom-24 left-6 w-96 h-[500px] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col z-40 max-h-[calc(100vh-120px)]"
           >
             {/* Header */}
             <div className="px-4 py-4 border-b border-slate-100 flex-shrink-0">
