@@ -244,7 +244,7 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
             <div
               key={hour}
               className={`absolute left-0 right-0 border-b border-slate-50 ${dragOver === hour ? "bg-indigo-50" : ""}`}
-              style={{ top: idx * SLOT_HEIGHT, height: SLOT_HEIGHT }}
+              style={{ top: rowTops[idx], height: rowHeights[idx] }}
             >
               {/* Time label */}
               <div className="absolute left-0 w-16 pt-2 pr-3 text-right">
