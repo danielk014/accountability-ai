@@ -123,7 +123,13 @@ export default function Dashboard() {
 
       <StatsRow tasks={tasks} completions={completions} />
 
-      {/* Today's tasks */}
+      <DailySchedule
+        tasks={sortedTasks}
+        completedTaskIds={completedTaskIds}
+        onToggle={(t) => toggleCompletionMutation.mutate(t)}
+      />
+
+      {/* Today's habits */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-bold text-slate-800">Today's habits</h2>
         <Button
