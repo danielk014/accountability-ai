@@ -134,16 +134,29 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
 
   const handleDrop = (e) => {
     e.preventDefault();
+    const placedTaskId = e.dataTransfer.getData("placedTaskId");
     const taskId = e.dataTransfer.getData("taskId");
-    if (!taskId) return;
     const yPx = getGridTop(e.clientY);
-    const snapped = Math.round(yPx / (SLOT_HEIGHT / 2)) * (SLOT_HEIGHT / 2);
-    const height = SLOT_HEIGHT;
-    setPlacedEvents(prev => {
-      const top = resolveNoOverlap(prev, taskId, snapped, height);
-      return { ...prev, [taskId]: { top, height } };
-    });
-    onDropTask?.(taskId, snapped, SLOT_HEIGHT);
+
+    if (placedTaskId) {
+      // Moving an already-placed event
+      const offsetY = parseInt(e.dataTransfer.getData("dragOffsetY") || "0");
+      const desiredTop = Math.round((yPx - offsetY) / (SLOT_HEIGHT / 2)) * (SLOT_HEIGHT / 2);
+      setPlacedEvents(prev => {
+        const height = prev[placedTaskId]?.height || SLOT_HEIGHT;
+        const top = resolveNoOverlap(prev, placedTaskId, Math.max(0, desiredTop), height);
+        return { ...prev, [placedTaskId]: { top, height } };
+      });
+    } else if (taskId) {
+      // Dropping a new task from sidebar
+      const snapped = Math.round(yPx / (SLOT_HEIGHT / 2)) * (SLOT_HEIGHT / 2);
+      const height = SLOT_HEIGHT;
+      setPlacedEvents(prev => {
+        const top = resolveNoOverlap(prev, taskId, snapped, height);
+        return { ...prev, [taskId]: { top, height } };
+      });
+      onDropTask?.(taskId, snapped, SLOT_HEIGHT);
+    }
     setDragOver(null);
   };
 
