@@ -110,6 +110,18 @@ export default function TaskFormDialog({ open, onOpenChange, onSubmit, task, def
               </Select>
             </div>
           </div>
+          {formData.frequency === "once" && (
+            <div className="space-y-2">
+              <Label htmlFor="date">Date</Label>
+              <Input
+                id="date"
+                type="date"
+                value={formData.scheduled_date || ""}
+                onChange={(e) => setFormData({ ...formData, scheduled_date: e.target.value })}
+                className="rounded-xl"
+              />
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="time">Scheduled time (optional)</Label>
             <Input
