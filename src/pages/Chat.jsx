@@ -38,14 +38,23 @@ export default function Chat() {
       // Guard: never send more than one check-in per page load
       if (checkinSentRef.current) return;
 
-      const conversations = await base44.agents.listConversations({
-        agent_name: "accountability_partner",
-      });
-
       const today = new Date().toISOString().split("T")[0];
       const hour = new Date().getHours();
       const slot = getCheckinSlot(hour);
       const storageKey = `last_checkin_${today}_slot${slot}`;
+
+      // Determine up-front whether we should send a check-in
+      const shouldCheckin = !localStorage.getItem(storageKey);
+
+      // Mark guard immediately so re-mounts never double-fire
+      if (shouldCheckin) {
+        checkinSentRef.current = true;
+        localStorage.setItem(storageKey, "1");
+      }
+
+      const conversations = await base44.agents.listConversations({
+        agent_name: "accountability_partner",
+      });
 
       let conv;
 
@@ -55,10 +64,7 @@ export default function Chat() {
         setMessages(conv.messages || []);
         setIsInitializing(false);
 
-        // Only send if this slot hasn't been sent yet today
-        if (!localStorage.getItem(storageKey)) {
-          checkinSentRef.current = true;
-          localStorage.setItem(storageKey, "1");
+        if (shouldCheckin) {
           setIsLoading(true);
           await base44.agents.addMessage(conv, {
             role: "user",
@@ -73,8 +79,6 @@ export default function Chat() {
         setConversationId(conv.id);
         setMessages([]);
         setIsInitializing(false);
-        checkinSentRef.current = true;
-        localStorage.setItem(storageKey, "1");
         setIsLoading(true);
         await base44.agents.addMessage(conv, {
           role: "user",
