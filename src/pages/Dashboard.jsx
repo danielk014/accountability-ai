@@ -170,6 +170,7 @@ export default function Dashboard() {
         open={showForm}
         onOpenChange={setShowForm}
         onSubmit={(data) => createTaskMutation.mutate(data)}
+        defaultDate={today}
       />
     </div>
   );
