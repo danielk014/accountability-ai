@@ -61,7 +61,7 @@ export default function Progress() {
         </button>
       </div>
 
-      {tab === "activity" && <TimeActivityChart tasks={tasks} completions={[]} />}
+      {tab === "activity" && <TimeActivityChart tasks={tasks} completions={completions} />}
       {tab === "sleep" && <SleepChart sleepData={sleep} />}
     </div>
   );
