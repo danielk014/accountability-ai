@@ -115,26 +115,32 @@ export default function TimeActivityChart({ tasks, completions = [] }) {
         </BarChart>
       </ResponsiveContainer>
 
-      {/* Completed tasks for selected day */}
+      {/* Daily schedule for selected day */}
       {expandedDay && (
         <div className="mt-6 p-4 rounded-xl bg-slate-50 border border-slate-100">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-semibold text-slate-800">Completed Tasks</p>
+            <p className="text-sm font-semibold text-slate-800">
+              {format(new Date(expandedDay), "EEEE, MMM d")} Schedule
+            </p>
             <button onClick={() => setExpandedDay(null)} className="text-slate-400 hover:text-slate-600">
               <ChevronDown className="w-4 h-4 rotate-180" />
             </button>
           </div>
           <div className="space-y-2">
             {chartData.find(d => d.date === expandedDay)?.completions?.length > 0 ? (
-              chartData.find(d => d.date === expandedDay).completions.map(c => (
-                <div key={c.id} className="flex items-center gap-2 text-sm text-slate-700">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  <span>{c.task_name}</span>
-                  {c.completed_at && <span className="text-xs text-slate-500 ml-auto">{c.completed_at}</span>}
+              chartData.find(d => d.date === expandedDay).completions.sort((a, b) => {
+                const timeA = a.completed_at || "00:00";
+                const timeB = b.completed_at || "00:00";
+                return timeA.localeCompare(timeB);
+              }).map(c => (
+                <div key={c.id} className="flex items-center gap-3 text-sm text-slate-700">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
+                  <span className="flex-1 font-medium">{c.task_name}</span>
+                  {c.completed_at && <span className="text-xs text-slate-500 bg-white rounded px-2 py-1">{c.completed_at}</span>}
                 </div>
               ))
             ) : (
-              <p className="text-xs text-slate-500">No tasks completed this day</p>
+              <p className="text-xs text-slate-500">No tasks completed on this day</p>
             )}
           </div>
         </div>
