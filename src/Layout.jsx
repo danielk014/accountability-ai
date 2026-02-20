@@ -10,6 +10,7 @@ const navItems = [
   { name: "Chat", icon: MessageCircle, page: "Chat" },
   { name: "Habits", icon: ListChecks, page: "Habits" },
   { name: "Progress", icon: BarChart3, page: "Progress" },
+  { name: "Admin", icon: Shield, page: "Admin", adminOnly: true },
 ];
 
 export default function Layout({ children, currentPageName }) {
