@@ -97,10 +97,16 @@ export default function SleepChart({ sleepData }) {
       toast.error("Fill in all fields");
       return;
     }
+    const data = {
+      date: formData.date,
+      hours: parseFloat(formData.hours),
+      quality: formData.quality,
+      ...(formData.sleep_time && { sleep_time: formData.sleep_time })
+    };
     if (editingId) {
-      updateMutation.mutate({ id: editingId, data: { date: formData.date, hours: parseFloat(formData.hours), quality: formData.quality } });
+      updateMutation.mutate({ id: editingId, data });
     } else {
-      createMutation.mutate({ date: formData.date, hours: parseFloat(formData.hours), quality: formData.quality });
+      createMutation.mutate(data);
     }
   };
 
