@@ -131,11 +131,10 @@ export default function SleepChart({ sleepData }) {
           </Button>
           <Button
             variant="ghost"
-            size="icon"
             onClick={() => setWeekOffset(0)}
-            className="rounded-lg h-8 w-8"
+            className="rounded-lg text-xs h-8 px-3"
           >
-            Today
+            Weekly
           </Button>
           <Button
             variant="ghost"
