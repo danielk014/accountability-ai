@@ -101,7 +101,7 @@ function EventCard({ task, top, height, done, onToggle, onResize, onRemove, colo
   );
 }
 
-export default function DayView({ date, tasks, completions, onToggle, onDropTask }) {
+export default function DayView({ date, tasks, completions, onToggle, onDropTask, onRemoveTask }) {
   const dateStr = format(date, "yyyy-MM-dd");
   const isToday = isSameDay(date, new Date());
   const nowHour = new Date().getHours();
