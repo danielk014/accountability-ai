@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "./utils";
-import { LayoutDashboard, MessageCircle, BarChart3, ListChecks, CalendarDays } from "lucide-react";
+import { LayoutDashboard, MessageCircle, BarChart3, ListChecks, CalendarDays, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
