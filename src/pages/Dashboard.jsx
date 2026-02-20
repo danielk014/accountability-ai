@@ -111,6 +111,30 @@ export default function Dashboard() {
     return (a.scheduled_time || "99:99").localeCompare(b.scheduled_time || "99:99");
   });
 
+  // Get upcoming tasks (next 7 days)
+  const upcomingTasks = [];
+  for (let i = 1; i <= 7; i++) {
+    const futureDate = new Date(today);
+    futureDate.setDate(futureDate.getDate() + i);
+    const futureDateStr = format(futureDate, "yyyy-MM-dd");
+    const futureDay = format(futureDate, "EEEE").toLowerCase();
+    const isFutureWeekday = !["saturday", "sunday"].includes(futureDay);
+
+    activeTasks.forEach(t => {
+      if (t.is_active === false) return;
+      let applies = false;
+      if (t.frequency === "once") applies = t.scheduled_date === futureDateStr;
+      else if (t.frequency === "daily") applies = true;
+      else if (t.frequency === "weekdays") applies = isFutureWeekday;
+      else if (t.frequency === "weekends") applies = !isFutureWeekday;
+      else if (t.frequency === futureDay) applies = true;
+
+      if (applies && !upcomingTasks.find(ut => ut.task.id === t.id && ut.date === futureDateStr)) {
+        upcomingTasks.push({ task: t, date: futureDateStr, dateObj: futureDate });
+      }
+    });
+  }
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <GreetingHeader
