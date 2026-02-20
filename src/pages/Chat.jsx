@@ -143,6 +143,7 @@ export default function Chat() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-6">
         <div className="max-w-3xl mx-auto space-y-4">
+
           {displayMessages.length === 0 && (
             <div className="text-center py-20">
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto mb-4">
