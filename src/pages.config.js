@@ -53,8 +53,8 @@ import Dashboard from './pages/Dashboard';
 import Habits from './pages/Habits';
 import Onboarding from './pages/Onboarding';
 import Progress from './pages/Progress';
-import Schedule from './pages/Schedule';
 import Settings from './pages/Settings';
+import Calendar from './pages/Calendar';
 import __Layout from './Layout.jsx';
 
 
@@ -65,8 +65,8 @@ export const PAGES = {
     "Habits": Habits,
     "Onboarding": Onboarding,
     "Progress": Progress,
-    "Schedule": Schedule,
     "Settings": Settings,
+    "Calendar": Calendar,
 }
 
 export const pagesConfig = {

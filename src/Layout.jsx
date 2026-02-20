@@ -9,7 +9,7 @@ import FloatingChatBubble from "@/components/chat/FloatingChatBubble";
 const navItems = [
   { name: "Chat", icon: MessageCircle, page: "Chat" },
   { name: "Dashboard", icon: LayoutDashboard, page: "Dashboard" },
-  { name: "Schedule", icon: CalendarDays, page: "Schedule" },
+  { name: "Calendar", icon: CalendarDays, page: "Calendar" },
   { name: "To Do", icon: ListChecks, page: "Habits" },
   { name: "Progress", icon: BarChart3, page: "Progress" },
 ];

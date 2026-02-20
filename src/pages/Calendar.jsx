@@ -12,7 +12,7 @@ import TaskSidebar from "../components/schedule/TaskSidebar.jsx";
 import TaskFormDialog from "../components/tasks/TaskFormDialog.jsx";
 import CalendarPicker from "../components/schedule/CalendarPicker.jsx";
 
-export default function Schedule() {
+export default function Calendar() {
   const [view, setView] = useState("day");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isSyncingCalendar, setIsSyncingCalendar] = useState(false);
@@ -146,7 +146,7 @@ export default function Schedule() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-slate-800">Schedule</h1>
+          <h1 className="text-2xl font-bold text-slate-800">Calendar</h1>
           {!isToday && (
             <button
               onClick={() => setCurrentDate(new Date())}
