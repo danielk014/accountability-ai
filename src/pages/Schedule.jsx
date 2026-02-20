@@ -184,6 +184,7 @@ export default function Schedule() {
               completions={completions}
               onToggle={(task, date) => toggleCompletionMutation.mutate({ task, date })}
               onRemoveTask={(task) => removeTaskMutation.mutate(task)}
+              onDropTask={onDropTask}
             />
           ) : (
             <WeekView
