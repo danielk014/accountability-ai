@@ -166,7 +166,7 @@ export default function SleepChart({ sleepData }) {
         </BarChart>
       </ResponsiveContainer>
 
-      <div className="mt-6 grid grid-cols-3 gap-3 mb-6">
+      <div className="mt-6 grid grid-cols-4 gap-3 mb-6">
         <div className="p-3 rounded-lg bg-violet-50 border border-violet-200">
           <p className="text-xs text-violet-600 font-medium">Average</p>
           <p className="text-lg font-bold text-violet-800 mt-1">{avgHours}h</p>
@@ -178,8 +178,16 @@ export default function SleepChart({ sleepData }) {
           </p>
         </div>
         <div className="p-3 rounded-lg bg-indigo-50 border border-indigo-200">
-          <p className="text-xs text-indigo-600 font-medium">Nights Logged</p>
-          <p className="text-lg font-bold text-indigo-800 mt-1">{chartData.filter(d => d.hours > 0).length}</p>
+          <p className="text-xs text-indigo-600 font-medium">Avg Score</p>
+          <p className="text-lg font-bold text-indigo-800 mt-1">
+            {chartData.filter(d => d.hours > 0).length > 0 
+              ? (chartData.reduce((s, d) => s + d.score, 0) / chartData.filter(d => d.hours > 0).length).toFixed(1) 
+              : "—"}/10
+          </p>
+        </div>
+        <div className="p-3 rounded-lg bg-sky-50 border border-sky-200">
+          <p className="text-xs text-sky-600 font-medium">Nights Logged</p>
+          <p className="text-lg font-bold text-sky-800 mt-1">{chartData.filter(d => d.hours > 0).length}</p>
         </div>
       </div>
 
