@@ -12,6 +12,7 @@ import StatsRow from "../components/dashboard/StatsRow";
 import TaskCard from "../components/dashboard/TaskCard";
 import TaskFormDialog from "../components/tasks/TaskFormDialog";
 import WeeklyChart from "../components/progress/WeeklyChart";
+import AboutMePanel from "../components/dashboard/AboutMePanel";
 
 export default function Dashboard() {
   const [showForm, setShowForm] = useState(false);
