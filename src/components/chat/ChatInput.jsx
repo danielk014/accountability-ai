@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Send, Loader2, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -44,33 +45,42 @@ export default function ChatInput({ onSend, isLoading, onCoachingClick }) {
       const poorSleepDays = sleep.filter(s => s.hours < 6).length;
       const excellentSleep = sleep.filter(s => s.hours >= 8).length;
 
+      const recentDays = 7;
+      const recentCompletions = completions.slice(0, recentDays * Math.max(tasks.length, 1));
+      const completedCount = recentCompletions.filter(c => tasks.find(t => t.id === c.task_id)).length;
+      const totalTaskDays = recentDays * Math.max(tasks.length, 1);
+      const completionRate = totalTaskDays > 0 ? (completedCount / totalTaskDays) * 100 : 0;
+
       const prompt = `You are a brutally honest but deeply motivating coach with the intensity of David Goggins, the charisma of Joe Rogan, and the strategic mind of Alex Hormozi. Your job is to read between the lines of this person's data and tell them EXACTLY what's happening - no sugar coating, no fluff. But also remind them of their potential and fire them up to take action.
 
-**Their Data:**
-- Active Habits: ${tasks.filter(t => t.is_active !== false).length}
-- Completion Rate: ${Math.round(completionRate)}% (out of 100%)
-- Streaks: ${tasks.map(t => `"${t.name}" (${t.streak || 0} days)`).join(", ") || "None established yet"}
-- Habit Breakdown: ${JSON.stringify(tasks.reduce((acc, t) => {
-  acc[t.category] = (acc[t.category] || 0) + 1;
-  return acc;
-}, {}))}
+**Their Habit Performance (Last 7 Days):**
+${tasks.length > 0 ? tasks.map(t => {
+  const taskCompletions = completions.filter(c => c.task_id === t.id).length;
+  const completionPercent = (taskCompletions / 7 * 100).toFixed(0);
+  return `- **${t.name}** (${t.category}): ${taskCompletions}/7 days (${completionPercent}%) | Streak: ${t.streak || 0} days | Best: ${t.best_streak || 0} days`;
+}).join("\n") : "- No habits tracked yet"}
 
-**Sleep Reality:**
-- Average: ${avgSleep} hours (${avgSleep < 7 ? "INSUFFICIENT" : avgSleep < 8 ? "Below optimal" : "Solid"})
-- Poor nights (<6h): ${poorSleepDays} 
-- Great nights (8+h): ${excellentSleep}
-- Total tracked: ${sleep.length}
+**Overall Stats:**
+- Total Active Habits: ${tasks.filter(t => t.is_active !== false).length}
+- Overall Completion Rate (7d): ${Math.round(completionRate)}%
+- Total Habit Completions: ${completedCount}/last ${totalTaskDays}
 
-${profile?.[0]?.about_me_notes?.length > 0 ? `**Context:** ${profile[0].about_me_notes.join(", ")}` : ""}
+**Sleep Health:**
+- Average Sleep: ${avgSleep} hours ${avgSleep < 7 ? "⚠️ BELOW TARGET" : avgSleep <= 8 ? "✓ OPTIMAL" : "✓ EXCELLENT"}
+- Nights with Poor Sleep (<6h): ${poorSleepDays}
+- Nights with Great Sleep (8+h): ${excellentSleep}
+- Data Points: ${sleep.length} nights tracked
 
-Now give them the REAL talk:
-1. **The Honest Assessment**: What's actually happening here? Are they coasting? Crushing it? Lying to themselves?
-2. **The Hard Truth**: What's the gap between where they are and where they want to be? What are they actually tolerating?
-3. **Why It Matters**: Remind them what this REALLY costs them - in their health, potential, relationships, legacy. Don't be soft.
-4. **The Path Forward**: 3 specific moves THIS WEEK that will shift everything. Make it crystal clear.
-5. **The Fire**: Send them off with a message that makes them want to GET UP and DO THE WORK.
+${profile?.[0]?.about_me_notes?.length > 0 ? `**What You've Told Me About Yourself:**\n${profile[0].about_me_notes.map(note => `- ${note}`).join("\n")}` : ""}
 
-Be direct. Be intense. Be honest about the struggle. But make them FEEL their potential. Use their data to personalize it - make it real, not generic.`;
+Give them the REAL coaching - the kind that sticks:
+1. **The Honest Assessment**: Look at these specific habits and completion rates. Which ones are you really committed to? Which ones are you lying to yourself about?
+2. **The Sleep Connection**: How is your sleep affecting your consistency? Is fatigue killing your discipline?
+3. **The Hard Truth**: What's one habit you're tolerating that's holding you back? What's the cost of NOT fixing it?
+4. **The Path Forward**: Give 3 specific, non-negotiable actions for THIS WEEK. Make them crystal clear and directly tied to their data.
+5. **The Fire**: End with something that makes them feel called to greatness. Make it personal based on their actual performance.
+
+Be direct. Be intense. Use their actual numbers. Don't be generic.`;
 
       const response = await base44.integrations.Core.InvokeLLM({
         prompt,
@@ -92,20 +102,29 @@ Be direct. Be intense. Be honest about the struggle. But make them FEEL their po
   };
 
   return (
-    <div className="border-t border-slate-200 bg-white px-4 py-3">
-      <div className="flex items-end gap-2 max-w-3xl mx-auto">
-        <Button
-          onClick={handleCoaching}
-          disabled={loadingCoaching || isLoading}
-          variant="outline"
-          className="rounded-xl h-11 w-11 p-0 flex-shrink-0 border-slate-200 hover:bg-amber-50 hover:border-amber-300"
-        >
-          {loadingCoaching ? (
-            <Loader2 className="w-4 h-4 animate-spin text-amber-600" />
-          ) : (
-            <Lightbulb className="w-4 h-4 text-amber-600" />
-          )}
-        </Button>
+    <TooltipProvider>
+      <div className="border-t border-slate-200 bg-white px-4 py-3">
+        <div className="flex items-end gap-2 max-w-3xl mx-auto">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                onClick={handleCoaching}
+                disabled={loadingCoaching || isLoading}
+                variant="outline"
+                className="rounded-xl h-11 w-11 p-0 flex-shrink-0 border-slate-200 hover:bg-amber-50 hover:border-amber-300"
+              >
+                {loadingCoaching ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-amber-600" />
+                ) : (
+                  <Lightbulb className="w-4 h-4 text-amber-600" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="font-medium">AI Coaching</p>
+              <p className="text-xs text-slate-300">Analyze your habits & get real talk</p>
+            </TooltipContent>
+          </Tooltip>
         <textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
@@ -140,6 +159,7 @@ Be direct. Be intense. Be honest about the struggle. But make them FEEL their po
            )}
          </Button>
         </div>
-        </div>
-        );
-        }
+      </div>
+    </TooltipProvider>
+  );
+}
