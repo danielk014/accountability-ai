@@ -34,6 +34,9 @@ export default function Chat() {
   // Load or create conversation — send proactive check-in up to 3x per day (morning/midday/evening)
   useEffect(() => {
     async function init() {
+      // Guard: never send more than one check-in per page load
+      if (checkinSentRef.current) return;
+
       const conversations = await base44.agents.listConversations({
         agent_name: "accountability_partner",
       });
@@ -51,12 +54,12 @@ export default function Chat() {
         setMessages(conv.messages || []);
         setIsInitializing(false);
 
-        // Check if we already sent a check-in for this slot today
+        // Only send if this slot hasn't been sent yet today
         if (!localStorage.getItem(storageKey)) {
+          checkinSentRef.current = true;
           localStorage.setItem(storageKey, "1");
           setIsLoading(true);
-          const freshConv = await base44.agents.getConversation(conv.id);
-          await base44.agents.addMessage(freshConv, {
+          await base44.agents.addMessage(conv, {
             role: "user",
             content: getProactivePrompt(slot),
           });
@@ -69,10 +72,10 @@ export default function Chat() {
         setConversationId(conv.id);
         setMessages([]);
         setIsInitializing(false);
+        checkinSentRef.current = true;
         localStorage.setItem(storageKey, "1");
         setIsLoading(true);
-        const freshConv = await base44.agents.getConversation(conv.id);
-        await base44.agents.addMessage(freshConv, {
+        await base44.agents.addMessage(conv, {
           role: "user",
           content: "Hi! I'm opening the app for the first time. Please introduce yourself and then ask me about my life goals, what I want to achieve, and what my weekly schedule looks like. Help me figure out what habits and tasks I should add to my days. Ask me questions one at a time to understand my life and goals deeply, then give me personalized advice and help me schedule my week.",
         });
