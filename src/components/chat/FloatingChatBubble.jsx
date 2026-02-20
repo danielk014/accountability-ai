@@ -5,12 +5,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
 
-export default function FloatingChatBubble() {
+export default function FloatingChatBubble({ currentPageName }) {
   const [isOpen, setIsOpen] = useState(false);
   const [conversationId, setConversationId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
+  const chatWindowRef = useRef(null);
+  const buttonRef = useRef(null);
 
   const HIDDEN_PROMPTS = [
     "I just opened the app.",
