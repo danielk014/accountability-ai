@@ -50,7 +50,7 @@ const SECTIONS = [
 ];
 
 function TextSection({ section, notes, onAdd, onDelete, onUpdate }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(notes.length > 0 ? true : false);
   const [input, setInput] = useState("");
   const [editingIdx, setEditingIdx] = useState(null);
   const [editValue, setEditValue] = useState("");
