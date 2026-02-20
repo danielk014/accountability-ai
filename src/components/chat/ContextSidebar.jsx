@@ -203,7 +203,7 @@ function PeopleSection({ items, onAdd, onDelete, onUpdate }) {
 
 export default function ContextSidebar() {
   const queryClient = useQueryClient();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
 
   const { data: profiles = [] } = useQuery({
     queryKey: ["profile"],
