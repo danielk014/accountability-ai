@@ -164,6 +164,15 @@ export default function Dashboard() {
 
       <WeeklyChart completions={completions} tasks={tasks} />
 
+      {/* Floating add button */}
+      <button
+        onClick={() => setShowForm(true)}
+        className="fixed bottom-8 right-8 w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center z-40"
+        title="Add new habit"
+      >
+        <Plus className="w-6 h-6" />
+      </button>
+
       <TaskFormDialog
         open={showForm}
         onOpenChange={setShowForm}
