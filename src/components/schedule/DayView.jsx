@@ -120,10 +120,10 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
   const timedTasks = dayTasks.filter((t) => t.scheduled_time && !placedEvents[t.id]);
   const untimedTasks = dayTasks.filter((t) => !t.scheduled_time && !placedEvents[t.id]);
 
+  // Group timed tasks by hour for rendering inside hour rows
   const tasksByHour = {};
   timedTasks.forEach((t) => {
-    const [h, m] = t.scheduled_time.split(":").map(Number);
-    const hour = h;
+    const hour = parseInt(t.scheduled_time.split(":")[0]);
     if (!tasksByHour[hour]) tasksByHour[hour] = [];
     tasksByHour[hour].push(t);
   });
