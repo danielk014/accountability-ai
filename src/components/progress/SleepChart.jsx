@@ -191,7 +191,7 @@ export default function SleepChart({ sleepData }) {
         </div>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2 mb-6">
         {chartData.map((item) => {
           const scoreColor = item.score >= 8 ? "text-emerald-600 bg-emerald-50" : item.score >= 6 ? "text-amber-600 bg-amber-50" : "text-red-600 bg-red-50";
           return (
@@ -240,6 +240,58 @@ export default function SleepChart({ sleepData }) {
             </div>
           );
         })}
+      </div>
+
+      {/* Sleep detail for selected day */}
+      {expandedDay && (
+        <div className="mb-6 p-4 rounded-xl bg-slate-50 border border-slate-100">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold text-slate-800">
+              {format(new Date(expandedDay), "EEEE, MMM d")}
+            </p>
+            <button onClick={() => setExpandedDay(null)} className="text-slate-400 hover:text-slate-600">
+              <ChevronDown className="w-4 h-4 rotate-180" />
+            </button>
+          </div>
+          {chartData.find(d => d.date === expandedDay)?.hours > 0 ? (
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-slate-600">Sleep Time:</span>
+                <span className="font-medium text-slate-800">{chartData.find(d => d.date === expandedDay)?.sleep_time || "—"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-600">Hours:</span>
+                <span className="font-medium text-slate-800">{chartData.find(d => d.date === expandedDay)?.hours}h</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-600">Quality:</span>
+                <span className="font-medium capitalize text-slate-800">{chartData.find(d => d.date === expandedDay)?.quality}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-600">Score:</span>
+                <span className="font-medium text-slate-800">{chartData.find(d => d.date === expandedDay)?.score}/10</span>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-slate-500">No sleep data for this day</p>
+          )}
+        </div>
+      )}
+
+      <div className="flex gap-3">
+        {chartData.map(day => (
+          <button
+            key={day.date}
+            onClick={() => setExpandedDay(expandedDay === day.date ? null : day.date)}
+            className={`flex-1 text-center py-2 px-3 rounded-lg text-xs font-medium transition-colors ${
+              expandedDay === day.date
+                ? "bg-indigo-100 text-indigo-700"
+                : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            {day.day}
+          </button>
+        ))}
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
