@@ -14,24 +14,7 @@ export default function CalendarPicker({ selectedDate, onSelectDate }) {
   const monthStart = startOfMonth(baseMonth);
   const monthEnd = endOfMonth(baseMonth);
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
-
-  // Pad with days from previous/next month
   const firstDayOfWeek = monthStart.getDay();
-  const prevMonthEnd = subMonths(monthStart, 1);
-  const prevMonthStart = startOfMonth(prevMonthEnd);
-  const prevMonthDays = eachDayOfInterval({
-    start: prevMonthStart,
-    end: prevMonthEnd,
-  }).slice(-firstDayOfWeek);
-
-  const nextMonthDays = 42 - (prevMonthDays.length + daysInMonth.length);
-  const allDays = [
-    ...prevMonthDays,
-    ...daysInMonth,
-    ...Array.from({ length: nextMonthDays }, (_, i) =>
-      addMonths(monthEnd, 1).setDate ? new Date(monthEnd.getFullYear(), monthEnd.getMonth() + 1, i + 1) : null
-    ).filter(Boolean),
-  ];
 
   return (
     <div className="relative">
