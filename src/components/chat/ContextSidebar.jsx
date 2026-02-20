@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import { Plus, X, Brain, ChevronDown, ChevronUp, User, Briefcase, Users, Target, StickyNote, ChevronLeft, ChevronRight, Pencil, Check } from "lucide-react";
+import { Plus, X, Brain, ChevronDown, ChevronUp, User, Briefcase, Users, Target, StickyNote, ChevronLeft, ChevronRight, Pencil, Check, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 const SECTIONS = [
@@ -77,6 +77,79 @@ function TextSection({ section, items, onAdd, onDelete, onUpdate }) {
               <Plus className="w-3.5 h-3.5" /> Save
             </button>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PersonalitySection({ profile, saveMutation, queryClient }) {
+  const [open, setOpen] = useState(true);
+
+  const PERSONALITIES = [
+    {
+      value: "gentle",
+      label: "Gentle Coach",
+      description: "Supportive and encouraging, celebrates small wins, uses gentle reminders"
+    },
+    {
+      value: "direct",
+      label: "Direct Coach",
+      description: "Straightforward and honest, tells it like it is, focuses on results"
+    },
+    {
+      value: "tough_love",
+      label: "Tough Love",
+      description: "Challenging and direct, pushes you hard, no excuses, high standards"
+    }
+  ];
+
+  const currentStyle = profile?.motivation_style || "direct";
+  const currentPersonality = PERSONALITIES.find(p => p.value === currentStyle);
+
+  const handleChange = (value) => {
+    if (profile?.id) {
+      saveMutation.mutate({ motivation_style: value });
+      toast.success("AI personality updated!");
+    }
+  };
+
+  return (
+    <div className="border-b border-slate-100">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-50 transition"
+      >
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 bg-amber-100 text-amber-600">
+            <Sparkles className="w-4 h-4" />
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-semibold text-slate-700">AI Personality</p>
+            <p className="text-xs text-slate-400">{currentPersonality?.label}</p>
+          </div>
+        </div>
+        {open ? <ChevronUp className="w-3.5 h-3.5 text-slate-300" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-300" />}
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 space-y-2">
+          {PERSONALITIES.map(p => (
+            <button
+              key={p.value}
+              onClick={() => handleChange(p.value)}
+              className={`w-full text-left rounded-lg border-2 px-3 py-2.5 transition ${
+                currentStyle === p.value
+                  ? "border-indigo-500 bg-indigo-50"
+                  : "border-slate-200 bg-white hover:border-slate-300"
+              }`}
+            >
+              <p className={`text-sm font-semibold ${currentStyle === p.value ? "text-indigo-700" : "text-slate-700"}`}>
+                {p.label}
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">{p.description}</p>
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -284,6 +357,9 @@ export default function ContextSidebar() {
           </div>
 
           <div className="flex-1 overflow-y-auto">
+            {/* Personality Section */}
+            <PersonalitySection profile={profile} saveMutation={saveMutation} queryClient={queryClient} />
+
             {SECTIONS.map((section) =>
               section.key === "context_people" ? (
                 <PeopleSection
