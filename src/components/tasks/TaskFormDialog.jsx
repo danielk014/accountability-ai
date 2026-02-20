@@ -17,6 +17,7 @@ const CATEGORIES = [
 ];
 
 const FREQUENCIES = [
+  { value: "once", label: "One time (specific date)" },
   { value: "daily", label: "Every day" },
   { value: "weekdays", label: "Weekdays" },
   { value: "weekends", label: "Weekends" },
@@ -27,7 +28,6 @@ const FREQUENCIES = [
   { value: "friday", label: "Friday" },
   { value: "saturday", label: "Saturday" },
   { value: "sunday", label: "Sunday" },
-  { value: "once", label: "One time" },
 ];
 
 export default function TaskFormDialog({ open, onOpenChange, onSubmit, task }) {
