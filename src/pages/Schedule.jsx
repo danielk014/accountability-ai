@@ -80,8 +80,11 @@ export default function Schedule() {
     },
   });
 
+  // For day view, filter tasks for the current date only
   const activeTasks = tasks.filter((t) => {
     if (t.is_active === false) return false;
+    if (view === "week") return true; // Week view handles its own filtering
+    
     const dateStr = format(currentDate, "yyyy-MM-dd");
     const dow = format(currentDate, "EEEE").toLowerCase();
     const isWeekday = !["saturday", "sunday"].includes(dow);
