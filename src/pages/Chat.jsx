@@ -12,6 +12,7 @@ export default function Chat() {
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const messagesEndRef = useRef(null);
+  const checkinSentRef = useRef(false);
 
   // Determine which proactive check-in slot (0=morning, 1=midday, 2=evening)
   function getCheckinSlot(hour) {
