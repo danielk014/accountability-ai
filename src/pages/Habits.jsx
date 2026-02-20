@@ -92,15 +92,15 @@ export default function Habits() {
     <div className="max-w-2xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Habits</h1>
-          <p className="text-slate-500 mt-1">Manage your daily habits and routines.</p>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">To Do List</h1>
+          <p className="text-slate-500 mt-1">Your personal to-do items.</p>
         </div>
         <Button
           onClick={() => { setEditingTask(null); setShowForm(true); }}
           className="rounded-xl bg-indigo-600 hover:bg-indigo-700"
         >
           <Plus className="w-4 h-4 mr-1" />
-          New habit
+          New task
         </Button>
       </div>
 
