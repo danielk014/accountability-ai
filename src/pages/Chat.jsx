@@ -13,18 +13,24 @@ export default function Chat() {
   const [isInitializing, setIsInitializing] = useState(true);
   const messagesEndRef = useRef(null);
 
-  // Determine which proactive check-in to send based on time of day
-  function getProactivePrompt(hour) {
-    if (hour >= 5 && hour < 12) {
-      return "SYSTEM_PROACTIVE: It's morning. Check my tasks for today, give me a warm morning briefing of what's on my schedule, and ask how I'm feeling about the day ahead.";
-    } else if (hour >= 12 && hour < 17) {
-      return "SYSTEM_PROACTIVE: It's midday. Check which of my tasks today are completed and which are still pending. Remind me about any incomplete tasks and ask how my day is going so far.";
+  // Determine which proactive check-in slot (0=morning, 1=midday, 2=evening)
+  function getCheckinSlot(hour) {
+    if (hour >= 5 && hour < 12) return 0;
+    if (hour >= 12 && hour < 17) return 1;
+    return 2;
+  }
+
+  function getProactivePrompt(slot) {
+    if (slot === 0) {
+      return "SYSTEM_PROACTIVE_MORNING: Good morning check-in. Look at all my tasks scheduled for today. Figure out from my schedule what I'll likely be doing this morning (gym? work? errands?). Then send me a fun, upbeat, friendly morning message like a best friend would — reference what's on my agenda specifically, hype me up, and ask if I need help with anything today. Keep it short, playful, and warm. No bullet points, just talk to me like a friend.";
+    } else if (slot === 1) {
+      return "SYSTEM_PROACTIVE_MIDDAY: Midday check-in. Look at my tasks for today and check which ones are done vs still pending. Based on my schedule, figure out what I'm probably doing right now (at work? lunch? gym?). Send me a friendly midday message — acknowledge what I might be up to, celebrate anything I've already knocked out, and give me a little nudge on what's still ahead. Playful, encouraging, like a friend texting me. Ask if I need any help or if anything feels overwhelming. Keep it conversational and short.";
     } else {
-      return "SYSTEM_PROACTIVE: It's evening. Review how my day went — check all my tasks for today, see which ones I completed and which I missed. Give me a warm end-of-day summary, celebrate what I did, gently note what I missed, and ask how I'm feeling overall.";
+      return "SYSTEM_PROACTIVE_EVENING: Evening check-in. Read all my tasks for today and my completions. Give me a warm, friendly end-of-day message — like a friend asking how my day went. Celebrate what I crushed, gently mention anything I missed without making me feel bad, and ask how I'm genuinely feeling. Ask if there's anything I want to talk through or need help with tonight. Maybe mention something to look forward to tomorrow if I have tasks. Short, warm, like a real person who cares.";
     }
   }
 
-  // Load or create conversation — send proactive check-in once per day
+  // Load or create conversation — send proactive check-in up to 3x per day (morning/midday/evening)
   useEffect(() => {
     async function init() {
       const conversations = await base44.agents.listConversations({
@@ -33,6 +39,8 @@ export default function Chat() {
 
       const today = new Date().toISOString().split("T")[0];
       const hour = new Date().getHours();
+      const slot = getCheckinSlot(hour);
+      const storageKey = `last_checkin_${today}_slot${slot}`;
 
       let conv;
 
@@ -42,15 +50,14 @@ export default function Chat() {
         setMessages(conv.messages || []);
         setIsInitializing(false);
 
-        // Check if we already sent a proactive message today
-        const lastProactive = localStorage.getItem("last_proactive_checkin");
-        if (lastProactive !== today) {
-          localStorage.setItem("last_proactive_checkin", today);
+        // Check if we already sent a check-in for this slot today
+        if (!localStorage.getItem(storageKey)) {
+          localStorage.setItem(storageKey, "1");
           setIsLoading(true);
           const freshConv = await base44.agents.getConversation(conv.id);
           await base44.agents.addMessage(freshConv, {
             role: "user",
-            content: getProactivePrompt(hour),
+            content: getProactivePrompt(slot),
           });
         }
       } else {
@@ -61,7 +68,7 @@ export default function Chat() {
         setConversationId(conv.id);
         setMessages([]);
         setIsInitializing(false);
-        localStorage.setItem("last_proactive_checkin", today);
+        localStorage.setItem(storageKey, "1");
         setIsLoading(true);
         const freshConv = await base44.agents.getConversation(conv.id);
         await base44.agents.addMessage(freshConv, {
