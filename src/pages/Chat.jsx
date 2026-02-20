@@ -196,6 +196,10 @@ export default function Chat() {
 
       {/* Input */}
       <ChatInput onSend={handleSend} isLoading={isLoading} />
+      </div>
+
+      {/* Context sidebar */}
+      <ContextSidebar />
     </div>
   );
 }
