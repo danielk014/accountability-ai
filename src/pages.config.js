@@ -52,6 +52,7 @@ import Dashboard from './pages/Dashboard';
 import Habits from './pages/Habits';
 import Progress from './pages/Progress';
 import Schedule from './pages/Schedule';
+import Admin from './pages/Admin';
 import __Layout from './Layout.jsx';
 
 
@@ -61,6 +62,7 @@ export const PAGES = {
     "Habits": Habits,
     "Progress": Progress,
     "Schedule": Schedule,
+    "Admin": Admin,
 }
 
 export const pagesConfig = {
