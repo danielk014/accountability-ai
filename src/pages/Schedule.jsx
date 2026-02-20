@@ -79,7 +79,18 @@ export default function Schedule() {
     },
   });
 
-  const activeTasks = tasks.filter((t) => t.is_active !== false);
+  const activeTasks = tasks.filter((t) => {
+    if (t.is_active === false) return false;
+    const dateStr = format(currentDate, "yyyy-MM-dd");
+    const dow = format(currentDate, "EEEE").toLowerCase();
+    const isWeekday = !["saturday", "sunday"].includes(dow);
+    if (t.frequency === "once") return t.scheduled_date === dateStr;
+    if (t.frequency === "daily") return true;
+    if (t.frequency === "weekdays") return isWeekday;
+    if (t.frequency === "weekends") return !isWeekday;
+    if (t.frequency === dow) return true;
+    return false;
+  });
 
   const navigate = (dir) => {
     const d = new Date(currentDate);
