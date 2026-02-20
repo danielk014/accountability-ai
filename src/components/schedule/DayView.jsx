@@ -143,11 +143,16 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
       // Moving an already-placed event
       const offsetY = parseInt(e.dataTransfer.getData("dragOffsetY") || "0");
       const desiredTop = Math.round((yPx - offsetY) / (SLOT_HEIGHT / 2)) * (SLOT_HEIGHT / 2);
-      setPlacedEvents(prev => {
-        const height = prev[placedTaskId]?.height || SLOT_HEIGHT;
-        const top = resolveNoOverlap(prev, placedTaskId, Math.max(0, desiredTop), height);
-        return { ...prev, [placedTaskId]: { top, height } };
-      });
+      const top = Math.max(0, desiredTop);
+      const height = SLOT_HEIGHT;
+      const newTop = resolveNoOverlap({ ...placedEvents }, placedTaskId, top, height);
+      
+      // Calculate the hour from the new top position
+      const newHour = Math.floor(newTop / SLOT_HEIGHT) + 6;
+      const newTime = String(newHour).padStart(2, '0') + ":00";
+      
+      setPlacedEvents(prev => ({ ...prev, [placedTaskId]: { top: newTop, height } }));
+      onDropTask?.(placedTaskId, newTime, height);
     } else if (taskId) {
       // Dropping a new task from sidebar
       const snapped = Math.round(yPx / (SLOT_HEIGHT / 2)) * (SLOT_HEIGHT / 2);
@@ -156,7 +161,9 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
         const top = resolveNoOverlap(prev, taskId, snapped, height);
         return { ...prev, [taskId]: { top, height } };
       });
-      onDropTask?.(taskId, snapped, SLOT_HEIGHT);
+      const hour = Math.floor(snapped / SLOT_HEIGHT) + 6;
+      const time = String(hour).padStart(2, '0') + ":00";
+      onDropTask?.(taskId, time, SLOT_HEIGHT);
     }
     setDragOver(null);
   };
