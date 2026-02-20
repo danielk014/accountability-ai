@@ -10,24 +10,29 @@ export default function ChatInput({ onSend, isLoading, onCoachingClick, compact 
   const [message, setMessage] = useState("");
   const [loadingCoaching, setLoadingCoaching] = useState(false);
 
+  const { data: user } = useQuery({
+    queryKey: ["me"],
+    queryFn: () => base44.auth.me(),
+  });
+
   const { data: tasks = [] } = useQuery({
-    queryKey: ["tasks"],
-    queryFn: () => base44.entities.Task.list(),
+    queryKey: ["tasks", user?.email],
+    queryFn: () => user?.email ? base44.entities.Task.filter({ created_by: user.email }) : [],
   });
 
   const { data: completions = [] } = useQuery({
-    queryKey: ["completions"],
-    queryFn: () => base44.entities.TaskCompletion.list("-completed_date", 500),
+    queryKey: ["completions", user?.email],
+    queryFn: () => user?.email ? base44.entities.TaskCompletion.filter({ created_by: user.email }, "-completed_date", 500) : [],
   });
 
   const { data: sleep = [] } = useQuery({
-    queryKey: ["sleep"],
-    queryFn: () => base44.entities.Sleep.list("-date", 100),
+    queryKey: ["sleep", user?.email],
+    queryFn: () => user?.email ? base44.entities.Sleep.filter({ created_by: user.email }, "-date", 100) : [],
   });
 
   const { data: profile } = useQuery({
-    queryKey: ["profile"],
-    queryFn: () => base44.entities.UserProfile.list(),
+    queryKey: ["profile", user?.email],
+    queryFn: () => user?.email ? base44.entities.UserProfile.filter({ created_by: user.email }) : [],
   });
 
   const handleCoaching = async () => {
