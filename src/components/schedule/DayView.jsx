@@ -122,7 +122,8 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
 
   const tasksByHour = {};
   timedTasks.forEach((t) => {
-    const hour = parseInt(t.scheduled_time.split(":")[0]);
+    const [h, m] = t.scheduled_time.split(":").map(Number);
+    const hour = h;
     if (!tasksByHour[hour]) tasksByHour[hour] = [];
     tasksByHour[hour].push(t);
   });
