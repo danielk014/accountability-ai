@@ -158,6 +158,8 @@ export default function Dashboard() {
 
       <WeeklyChart completions={completions} tasks={tasks} />
 
+      <AboutMePanel profile={profile} />
+
       {/* Floating add button */}
       <button
         onClick={() => setShowForm(true)}
