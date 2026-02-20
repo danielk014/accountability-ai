@@ -110,7 +110,9 @@ export default function Chat() {
   const HIDDEN_PROMPTS = [
     "I just opened the app.",
     "Hi! I'm opening the app for the first time.",
-    "SYSTEM_PROACTIVE:",
+    "SYSTEM_PROACTIVE_MORNING:",
+    "SYSTEM_PROACTIVE_MIDDAY:",
+    "SYSTEM_PROACTIVE_EVENING:",
   ];
   const displayMessages = messages.filter(m =>
     m.role !== "system" &&
