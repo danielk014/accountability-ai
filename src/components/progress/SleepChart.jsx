@@ -13,11 +13,12 @@ import { toast } from "sonner";
 
 export default function SleepChart({ sleepData }) {
   const [weekOffset, setWeekOffset] = useState(0);
+  const [expandedDay, setExpandedDay] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({ date: "", hours: "", sleep_time: "", quality: "good" });
   const queryClient = useQueryClient();
-  const weekStart = startOfWeek(subWeeks(new Date(), -weekOffset));
+  const weekStart = startOfWeek(subWeeks(new Date(), -weekOffset), { weekStartsOn: 1 });
 
   // Calculate sleep quality score (0-10) based on hours and target of 7-9 hours for adult males
   const calculateSleepScore = (hours) => {
