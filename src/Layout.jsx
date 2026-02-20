@@ -1,8 +1,8 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "./utils";
-import { LayoutDashboard, MessageCircle, BarChart3, ListChecks, CalendarDays, Shield } from "lucide-react";
+import { LayoutDashboard, MessageCircle, BarChart3, ListChecks, CalendarDays, Shield, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import FloatingChatBubble from "@/components/chat/FloatingChatBubble";
 
@@ -16,11 +16,34 @@ const navItems = [
 ];
 
 export default function Layout({ children, currentPageName }) {
-  const [me, setMe] = React.useState(null);
+  const [me, setMe] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  React.useEffect(() => {
-    base44.auth.me().then(setMe).catch(() => {});
+  useEffect(() => {
+    async function checkAuth() {
+      try {
+        const user = await base44.auth.me();
+        setMe(user);
+      } catch (error) {
+        // User not authenticated, redirect to login
+        base44.auth.redirectToLogin();
+      } finally {
+        setLoading(false);
+      }
+    }
+    checkAuth();
   }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   const visibleItems = navItems.filter(item => !item.adminOnly || me?.role === "admin");
 
