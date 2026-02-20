@@ -26,7 +26,7 @@ export default function Layout({ children, currentPageName }) {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      <FloatingChatBubble />
+      <FloatingChatBubble currentPageName={currentPageName} />
       
       {/* Top nav */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
