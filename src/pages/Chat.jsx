@@ -115,6 +115,20 @@ export default function Chat() {
     await base44.agents.addMessage(conv, { role: "user", content });
   };
 
+  const handleCoachingClick = async (coachingMessage) => {
+    if (!conversationId) return;
+    setIsLoading(true);
+
+    // Send coaching as a user request
+    setMessages(prev => [...prev, { role: "user", content: "[AI Coaching Analysis]" }]);
+
+    const conv = await base44.agents.getConversation(conversationId);
+    await base44.agents.addMessage(conv, { 
+      role: "user", 
+      content: `[AI Coaching]: ${coachingMessage}` 
+    });
+  };
+
   // Filter out system messages and the hidden proactive check-in prompt
   const HIDDEN_PROMPTS = [
     "I just opened the app.",
@@ -196,7 +210,7 @@ export default function Chat() {
         </div>
 
         {/* Input */}
-        <ChatInput onSend={handleSend} isLoading={isLoading} />
+        <ChatInput onSend={handleSend} isLoading={isLoading} onCoachingClick={handleCoachingClick} />
       </div>
 
       {/* Context sidebar */}

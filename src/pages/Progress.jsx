@@ -5,7 +5,6 @@ import { Loader2 } from "lucide-react";
 
 import TimeActivityChart from "../components/progress/TimeActivityChart";
 import SleepChart from "../components/progress/SleepChart";
-import AICoaching from "../components/progress/AICoaching";
 
 export default function Progress() {
   const [tab, setTab] = useState("activity");
@@ -62,12 +61,7 @@ export default function Progress() {
         </button>
       </div>
 
-      {tab === "activity" && (
-        <>
-          <TimeActivityChart tasks={tasks} completions={completions} />
-          <AICoaching tasks={tasks} completions={completions} sleep={sleep} />
-        </>
-      )}
+      {tab === "activity" && <TimeActivityChart tasks={tasks} completions={completions} />}
       {tab === "sleep" && <SleepChart sleepData={sleep} />}
     </div>
   );
