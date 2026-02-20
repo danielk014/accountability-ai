@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 
-export default function ChatInput({ onSend, isLoading, onCoachingClick }) {
+export default function ChatInput({ onSend, isLoading, onCoachingClick, compact = false }) {
   const [message, setMessage] = useState("");
   const [loadingCoaching, setLoadingCoaching] = useState(false);
 
