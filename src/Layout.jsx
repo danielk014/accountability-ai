@@ -14,6 +14,14 @@ const navItems = [
 ];
 
 export default function Layout({ children, currentPageName }) {
+  const [me, setMe] = React.useState(null);
+
+  React.useEffect(() => {
+    base44.auth.me().then(setMe).catch(() => {});
+  }, []);
+
+  const visibleItems = navItems.filter(item => !item.adminOnly || me?.role === "admin");
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Top nav */}
@@ -27,7 +35,7 @@ export default function Layout({ children, currentPageName }) {
           </div>
 
           <nav className="flex items-center gap-1">
-            {navItems.map(item => {
+            {visibleItems.map(item => {
               const isActive = currentPageName === item.page;
               return (
                 <Link
