@@ -1,6 +1,6 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Flame, Clock, Dumbbell, Briefcase, BookOpen, User, Users, Brain, MoreHorizontal } from "lucide-react";
+import { Check, Clock, Dumbbell, Briefcase, BookOpen, User, Users, Brain, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const categoryConfig = {
