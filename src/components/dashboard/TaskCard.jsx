@@ -75,12 +75,7 @@ export default function TaskCard({ task, isCompleted, onToggle }) {
               {task.scheduled_time}
             </span>
           )}
-          {task.streak > 0 && (
-            <span className="flex items-center gap-1 text-xs text-amber-500 font-medium">
-              <Flame className="w-3 h-3" />
-              {task.streak}
-            </span>
-          )}
+
           <span className={cn("text-xs capitalize", config.color)}>{task.frequency}</span>
         </div>
       </div>
