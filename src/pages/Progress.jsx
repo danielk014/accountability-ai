@@ -9,19 +9,24 @@ import SleepChart from "../components/progress/SleepChart";
 export default function Progress() {
   const [tab, setTab] = useState("activity");
 
+  const { data: user } = useQuery({
+    queryKey: ["me"],
+    queryFn: () => base44.auth.me(),
+  });
+
   const { data: tasks = [], isLoading: loadingTasks } = useQuery({
-    queryKey: ["tasks"],
-    queryFn: () => base44.entities.Task.list(),
+    queryKey: ["tasks", user?.email],
+    queryFn: () => user?.email ? base44.entities.Task.filter({ created_by: user.email }) : [],
   });
 
   const { data: completions = [], isLoading: loadingCompletions } = useQuery({
-    queryKey: ["completions"],
-    queryFn: () => base44.entities.TaskCompletion.list("-completed_date", 500),
+    queryKey: ["completions", user?.email],
+    queryFn: () => user?.email ? base44.entities.TaskCompletion.filter({ created_by: user.email }, "-completed_date", 500) : [],
   });
 
   const { data: sleep = [], isLoading: loadingSleep } = useQuery({
-    queryKey: ["sleep"],
-    queryFn: () => base44.entities.Sleep.list("-date", 100),
+    queryKey: ["sleep", user?.email],
+    queryFn: () => user?.email ? base44.entities.Sleep.filter({ created_by: user.email }, "-date", 100) : [],
   });
 
   if (loadingTasks || loadingSleep || loadingCompletions) {
