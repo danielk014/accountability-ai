@@ -239,13 +239,13 @@ Be like a supportive friend wrapping up the day with them. Warm, genuine, no jud
     return true;
   });
 
-  const handleToggleSelect = (id) => {
+  const handleToggleSelect = (messageId) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
+      if (next.has(messageId)) {
+        next.delete(messageId);
       } else {
-        next.add(id);
+        next.add(messageId);
       }
       return next;
     });
@@ -255,12 +255,12 @@ Be like a supportive friend wrapping up the day with them. Warm, genuine, no jud
     if (selectedIds.size === displayMessages.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(displayMessages.map((_, i) => i.toString())));
+      setSelectedIds(new Set(displayMessages.map(msg => msg.id || JSON.stringify(msg))));
     }
   };
 
   const handleDeleteSelected = () => {
-    const newMessages = messages.filter((_, i) => !selectedIds.has(i.toString()));
+    const newMessages = messages.filter(msg => !selectedIds.has(msg.id || JSON.stringify(msg)));
     setMessages(newMessages);
     setSelectedIds(new Set());
     setIsSelectionMode(false);
@@ -368,18 +368,20 @@ Be like a supportive friend wrapping up the day with them. Warm, genuine, no jud
             </div>
           )}
 
-          {displayMessages.map((msg, i) => (
+          {displayMessages.map((msg) => {
+            const msgId = msg.id || JSON.stringify(msg);
+            return (
             <div
-              key={i}
+              key={msgId}
               className="flex gap-3 items-start group"
-              onContextMenu={(e) => { e.preventDefault(); setIsSelectionMode(true); handleToggleSelect(i.toString()); }}
+              onContextMenu={(e) => { e.preventDefault(); setIsSelectionMode(true); handleToggleSelect(msgId); }}
             >
               {isSelectionMode && (
                 <button
-                  onClick={() => handleToggleSelect(i.toString())}
+                  onClick={() => handleToggleSelect(msgId)}
                   className="mt-1 flex-shrink-0 text-slate-400 hover:text-indigo-600 transition"
                 >
-                  {selectedIds.has(i.toString()) ? (
+                  {selectedIds.has(msgId) ? (
                     <CheckSquare className="w-4 h-4 text-indigo-600" />
                   ) : (
                     <Square className="w-4 h-4" />
@@ -390,7 +392,8 @@ Be like a supportive friend wrapping up the day with them. Warm, genuine, no jud
                 <MessageBubble message={msg} />
               </div>
             </div>
-          ))}
+          );
+          })}
 
           {isLoading && messages[messages.length - 1]?.role === "user" && (
             <div className="flex gap-3">
