@@ -62,8 +62,12 @@ export default function FloatingChatBubble({ currentPageName }) {
   }, [conversationId]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    if (isOpen) {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+      }, 100);
+    }
+  }, [messages, isOpen]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
