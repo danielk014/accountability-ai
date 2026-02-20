@@ -179,6 +179,13 @@ export default function Schedule() {
         {/* Task sidebar */}
         <TaskSidebar tasks={activeTasks} />
       </div>
+
+      <TaskFormDialog
+        open={showForm}
+        onOpenChange={setShowForm}
+        onSubmit={(data) => createTaskMutation.mutate(data)}
+        defaultDate={format(currentDate, "yyyy-MM-dd")}
+      />
     </div>
   );
 }
