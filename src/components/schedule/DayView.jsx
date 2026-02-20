@@ -172,8 +172,26 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
     });
   };
 
-  const totalGridHeight = HOURS.length * SLOT_HEIGHT;
-  const nowTop = ((nowHour - 6) + nowMin / 60) * SLOT_HEIGHT;
+  // Compute dynamic row heights so tasks don't overflow/overlap
+  const rowHeights = HOURS.map((hour) => {
+    const count = (tasksByHour[hour] || []).length;
+    // Each task card is ~36px + 4px gap, minimum is SLOT_HEIGHT
+    return Math.max(SLOT_HEIGHT, count * 40 + 12);
+  });
+
+  // Compute cumulative tops for each hour row
+  const rowTops = rowHeights.reduce((acc, h, i) => {
+    acc.push(i === 0 ? 0 : acc[i - 1] + rowHeights[i - 1]);
+    return acc;
+  }, []);
+
+  const totalGridHeight = rowTops[rowTops.length - 1] + rowHeights[rowHeights.length - 1];
+  const nowTop = (() => {
+    const hourIdx = nowHour - 6;
+    if (hourIdx < 0 || hourIdx >= HOURS.length) return 0;
+    const fraction = nowMin / 60;
+    return rowTops[hourIdx] + fraction * rowHeights[hourIdx];
+  })();
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden flex-1">
