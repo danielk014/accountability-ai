@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import GreetingHeader from "../components/dashboard/GreetingHeader";
 import TaskCard from "../components/dashboard/TaskCard";
 import TaskFormDialog from "../components/tasks/TaskFormDialog";
+import EmailInsights from "../components/dashboard/EmailInsights";
 
 export default function Dashboard() {
   const [showForm, setShowForm] = useState(false);
@@ -150,6 +151,9 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Email Insights */}
+      <EmailInsights />
 
       {/* Floating add button */}
       <button
