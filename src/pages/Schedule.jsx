@@ -9,6 +9,7 @@ import DayView from "../components/schedule/DayView.jsx";
 import WeekView from "../components/schedule/WeekView.jsx";
 import TaskSidebar from "../components/schedule/TaskSidebar.jsx";
 import TaskFormDialog from "../components/tasks/TaskFormDialog.jsx";
+import CalendarPicker from "../components/schedule/CalendarPicker.jsx";
 
 export default function Schedule() {
   const [view, setView] = useState("day");
