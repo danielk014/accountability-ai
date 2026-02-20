@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "./utils";
 import { LayoutDashboard, MessageCircle, BarChart3, ListChecks, CalendarDays, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
+import FloatingChatBubble from "@/components/chat/FloatingChatBubble";
 
 const navItems = [
   { name: "Chat", icon: MessageCircle, page: "Chat" },
