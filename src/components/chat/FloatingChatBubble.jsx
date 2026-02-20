@@ -32,18 +32,22 @@ export default function FloatingChatBubble({ currentPageName }) {
 
   useEffect(() => {
     async function init() {
+      const user = await base44.auth.me();
       const conversations = await base44.agents.listConversations({
         agent_name: "accountability_partner",
       });
 
-      if (conversations.length > 0) {
-        const conv = await base44.agents.getConversation(conversations[0].id);
+      // Filter to only get the current user's conversation
+      const userConversation = conversations.find(c => c.created_by === user.email);
+
+      if (userConversation) {
+        const conv = await base44.agents.getConversation(userConversation.id);
         setConversationId(conv.id);
         setMessages(conv.messages || []);
       } else {
         const conv = await base44.agents.createConversation({
           agent_name: "accountability_partner",
-          metadata: { name: "My Accountability Chat" },
+          metadata: { name: "My Accountability Chat", user_email: user.email },
         });
         setConversationId(conv.id);
         setMessages([]);

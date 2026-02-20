@@ -115,6 +115,7 @@ Be like a supportive friend wrapping up the day with them. Warm, genuine, no jud
       // Guard: never send more than one message per page load
       if (checkinSentRef.current) return;
 
+      const user = await base44.auth.me();
       const today = new Date().toISOString().split("T")[0];
       const hour = new Date().getHours();
       const isMorning = shouldSendBriefing(hour);
@@ -148,10 +149,13 @@ Be like a supportive friend wrapping up the day with them. Warm, genuine, no jud
         agent_name: "accountability_partner",
       });
 
+      // Filter to only get the current user's conversation
+      const userConversation = conversations.find(c => c.created_by === user.email);
+
       let conv;
 
-      if (conversations.length > 0) {
-        conv = await base44.agents.getConversation(conversations[0].id);
+      if (userConversation) {
+        conv = await base44.agents.getConversation(userConversation.id);
         setConversationId(conv.id);
         setMessages(conv.messages || []);
         setIsInitializing(false);
@@ -166,7 +170,7 @@ Be like a supportive friend wrapping up the day with them. Warm, genuine, no jud
       } else {
         conv = await base44.agents.createConversation({
           agent_name: "accountability_partner",
-          metadata: { name: "My Accountability Chat" },
+          metadata: { name: "My Accountability Chat", user_email: user.email },
         });
         setConversationId(conv.id);
         setMessages([]);
