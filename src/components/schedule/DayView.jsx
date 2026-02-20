@@ -35,50 +35,24 @@ function formatHour(hour) {
   return hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
 }
 
-// Placed event card with resize handles
-function EventCard({ task, top, height, done, onToggle, onResize, onRemove, color }) {
-  const resizingRef = useRef(null);
-
-  const handleResizeStart = (e, edge) => {
-    e.stopPropagation();
-    e.preventDefault();
-    const startY = e.clientY;
-    const startH = height;
-    const startT = top;
-
-    const onMove = (me) => {
-      const dy = me.clientY - startY;
-      if (edge === "bottom") {
-        const newH = Math.max(SLOT_HEIGHT / 2, startH + dy);
-        onResize(task.id, startT, newH);
-      } else {
-        const newT = startT + dy;
-        const newH = Math.max(SLOT_HEIGHT / 2, startH - dy);
-        onResize(task.id, newT, newH);
-      }
-    };
-    const onUp = () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-  };
-
+// Placed event card with drag-to-move
+function EventCard({ task, top, height, done, onToggle, onMove, onRemove, color }) {
   const color2 = color || CATEGORY_COLORS[task.category] || CATEGORY_COLORS.other;
+
+  const handleDragStart = (e) => {
+    e.stopPropagation();
+    e.dataTransfer.setData("placedTaskId", task.id);
+    e.dataTransfer.setData("dragOffsetY", String(e.nativeEvent.offsetY));
+    e.dataTransfer.effectAllowed = "move";
+  };
 
   return (
     <div
-      className={`absolute left-1 right-1 rounded-xl border-l-4 shadow-sm select-none overflow-hidden ${color2} ${done ? "opacity-50" : ""}`}
+      draggable
+      onDragStart={handleDragStart}
+      className={`absolute left-1 right-1 rounded-xl border-l-4 shadow-sm select-none overflow-hidden cursor-grab active:cursor-grabbing ${color2} ${done ? "opacity-50" : ""}`}
       style={{ top, height: Math.max(height, 28), zIndex: 5 }}
     >
-      {/* Top resize handle */}
-      <div
-        className="absolute top-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-black/10 rounded-t-xl"
-        onMouseDown={(e) => handleResizeStart(e, "top")}
-      />
-
-      {/* Content */}
       <div className="flex items-start gap-1.5 px-2 py-1.5 h-full">
         <button onClick={() => onToggle(task)} className="mt-0.5 flex-shrink-0">
           {done
@@ -95,12 +69,6 @@ function EventCard({ task, top, height, done, onToggle, onResize, onRemove, colo
           <X className="w-3 h-3" />
         </button>
       </div>
-
-      {/* Bottom resize handle */}
-      <div
-        className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize hover:bg-black/10 rounded-b-xl"
-        onMouseDown={(e) => handleResizeStart(e, "bottom")}
-      />
     </div>
   );
 }
