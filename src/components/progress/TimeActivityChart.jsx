@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { format, subWeeks, startOfWeek, addDays } from "date-fns";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
@@ -13,6 +13,16 @@ const CATEGORY_COLORS = {
   social: "#ec4899",
   mindfulness: "#f59e0b",
   other: "#9ca3af",
+};
+
+const CATEGORY_LABEL_COLORS = {
+  health: "bg-emerald-100 text-emerald-700",
+  work: "bg-blue-100 text-blue-700",
+  learning: "bg-violet-100 text-violet-700",
+  personal: "bg-slate-100 text-slate-700",
+  social: "bg-pink-100 text-pink-700",
+  mindfulness: "bg-amber-100 text-amber-700",
+  other: "bg-gray-100 text-gray-700",
 };
 
 function taskAppliesOnDate(task, date) {
