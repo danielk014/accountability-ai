@@ -18,11 +18,15 @@ const CATEGORY_COLORS = {
 function taskAppliesOnDate(task, date) {
   const dow = format(date, "EEEE").toLowerCase();
   const isWeekday = !["saturday", "sunday"].includes(dow);
+  const dateStr = format(date, "yyyy-MM-dd");
+
+  if (task.frequency === "once") {
+    return task.scheduled_date === dateStr;
+  }
   if (task.frequency === "daily") return true;
   if (task.frequency === "weekdays") return isWeekday;
   if (task.frequency === "weekends") return !isWeekday;
   if (task.frequency === dow) return true;
-  if (task.frequency === "once") return true;
   return false;
 }
 
