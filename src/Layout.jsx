@@ -1,11 +1,11 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "./utils";
-import { LayoutDashboard, MessageCircle, BarChart3, ListChecks } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { LayoutDashboard, MessageCircle, BarChart3, ListChecks, CalendarDays } from "lucide-react";
 
 const navItems = [
   { name: "Dashboard", icon: LayoutDashboard, page: "Dashboard" },
+  { name: "Schedule", icon: CalendarDays, page: "Schedule" },
   { name: "Chat", icon: MessageCircle, page: "Chat" },
   { name: "Habits", icon: ListChecks, page: "Habits" },
   { name: "Progress", icon: BarChart3, page: "Progress" },
