@@ -243,7 +243,6 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
                     >
                       {done ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" /> : <Circle className="w-3.5 h-3.5 flex-shrink-0" />}
                       <span className={done ? "line-through" : ""}>{task.name}</span>
-                      {task.streak > 0 && <span className="ml-auto text-amber-500 font-bold">🔥{task.streak}</span>}
                     </button>
                   );
                 })}
