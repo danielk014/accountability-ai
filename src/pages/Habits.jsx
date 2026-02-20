@@ -156,8 +156,8 @@ export default function Habits() {
 
         {activeTasks.length === 0 && (
           <div className="text-center py-16 text-slate-400">
-            <p className="text-lg font-medium">No habits yet</p>
-            <p className="text-sm mt-1">Create your first habit to get started!</p>
+            <p className="text-lg font-medium">No tasks yet</p>
+            <p className="text-sm mt-1">Add your first to-do item to get started!</p>
           </div>
         )}
       </div>
