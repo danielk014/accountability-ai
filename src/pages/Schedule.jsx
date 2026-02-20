@@ -25,6 +25,7 @@ export default function Schedule() {
   });
 
   const today = format(new Date(), "yyyy-MM-dd");
+  const [showForm, setShowForm] = useState(false);
 
   const toggleCompletionMutation = useMutation({
     mutationFn: async ({ task, date }) => {
