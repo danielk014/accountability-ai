@@ -191,12 +191,12 @@ export default function Chat() {
             </div>
           )}
 
-          <div ref={messagesEndRef} />
+            <div ref={messagesEndRef} />
+          </div>
         </div>
-      </div>
 
-      {/* Input */}
-      <ChatInput onSend={handleSend} isLoading={isLoading} />
+        {/* Input */}
+        <ChatInput onSend={handleSend} isLoading={isLoading} />
       </div>
 
       {/* Context sidebar */}
