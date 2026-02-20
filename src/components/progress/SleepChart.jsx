@@ -259,7 +259,17 @@ export default function SleepChart({ sleepData }) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="hours">Hours</Label>
+              <Label htmlFor="sleep_time">Sleep Time</Label>
+              <Input
+                id="sleep_time"
+                type="time"
+                value={formData.sleep_time}
+                onChange={(e) => setFormData({ ...formData, sleep_time: e.target.value })}
+                className="rounded-xl"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="hours">Hours Slept</Label>
               <Input
                 id="hours"
                 type="number"
