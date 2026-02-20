@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import ReminderSettings from "./ReminderSettings";
 
 const CATEGORIES = [
   { value: "health", label: "Health & Fitness" },
@@ -39,6 +40,10 @@ export default function TaskFormDialog({ open, onOpenChange, onSubmit, task, def
     scheduled_date: today,
     frequency: "once",
     category: "personal",
+    reminder_enabled: false,
+    reminder_time: "",
+    reminder_days: [],
+    reminder_type: "in_app",
   });
 
   // Reset form when dialog opens
@@ -51,6 +56,10 @@ export default function TaskFormDialog({ open, onOpenChange, onSubmit, task, def
         scheduled_date: defaultDate || new Date().toISOString().split("T")[0],
         frequency: "once",
         category: "personal",
+        reminder_enabled: false,
+        reminder_time: "",
+        reminder_days: [],
+        reminder_type: "in_app",
       });
     }
   }, [open]);
@@ -142,6 +151,13 @@ export default function TaskFormDialog({ open, onOpenChange, onSubmit, task, def
               className="rounded-xl h-20"
             />
           </div>
+          <ReminderSettings
+            reminderEnabled={formData.reminder_enabled}
+            reminderTime={formData.reminder_time}
+            reminderDays={formData.reminder_days}
+            reminderType={formData.reminder_type}
+            onChange={(data) => setFormData({ ...formData, ...data })}
+          />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl">
               Cancel
