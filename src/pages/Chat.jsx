@@ -13,7 +13,7 @@ export default function Chat() {
   const [isInitializing, setIsInitializing] = useState(true);
   const messagesEndRef = useRef(null);
 
-  // Load or create conversation, then trigger proactive check-in ONCE (only when no messages yet)
+  // Load or create conversation — only send check-in prompt if brand new (zero messages)
   useEffect(() => {
     async function init() {
       const conversations = await base44.agents.listConversations({
@@ -21,15 +21,13 @@ export default function Chat() {
       });
 
       let conv;
-      let shouldCheckIn = false;
 
       if (conversations.length > 0) {
         conv = await base44.agents.getConversation(conversations[0].id);
         setConversationId(conv.id);
-        const existingMessages = (conv.messages || []).filter(m => m.role !== "system");
         setMessages(conv.messages || []);
-        // Only check in if this is a fresh conversation (no real messages yet)
-        shouldCheckIn = existingMessages.length === 0;
+        setIsInitializing(false);
+        // Never auto-send anything — user already has a conversation history
       } else {
         conv = await base44.agents.createConversation({
           agent_name: "accountability_partner",
@@ -37,19 +35,14 @@ export default function Chat() {
         });
         setConversationId(conv.id);
         setMessages([]);
-        shouldCheckIn = true;
-      }
-
-      setIsInitializing(false);
-
-      if (shouldCheckIn) {
+        setIsInitializing(false);
+        // Only on brand-new conversation: send a single welcome prompt
         setIsLoading(true);
         const freshConv = await base44.agents.getConversation(conv.id);
-        const isFirstEver = conversations.length === 0;
-        const prompt = isFirstEver
-          ? "Hi! I'm opening the app for the first time. Please introduce yourself and ask me about my goals and habits."
-          : "I just opened the app. Please do a proactive check-in: read my tasks and today's completions, then give me a status update and ask about any pending tasks.";
-        await base44.agents.addMessage(freshConv, { role: "user", content: prompt });
+        await base44.agents.addMessage(freshConv, {
+          role: "user",
+          content: "Hi! I'm opening the app for the first time. Please introduce yourself briefly and ask me about my goals.",
+        });
       }
     }
     init();
