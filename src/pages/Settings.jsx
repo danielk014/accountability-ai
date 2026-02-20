@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Mail } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "../utils";
 
@@ -30,6 +30,7 @@ const LANGUAGES = [
 export default function Settings() {
   const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
+  const [isConnectingGmail, setIsConnectingGmail] = useState(false);
 
   const { data: user } = useQuery({
     queryKey: ["me"],
@@ -102,6 +103,20 @@ export default function Settings() {
       console.error(error);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleConnectGmail = async () => {
+    setIsConnectingGmail(true);
+    try {
+      const authUrl = base44.connectors.getAuthorizationUrl('googlecalendar', {
+        scopes: ['https://www.googleapis.com/auth/calendar.readonly', 'email'],
+        redirectUrl: window.location.href,
+      });
+      window.location.href = authUrl;
+    } catch (error) {
+      toast.error("Failed to connect Gmail");
+      setIsConnectingGmail(false);
     }
   };
 
@@ -190,6 +205,33 @@ export default function Settings() {
                 className="rounded-xl h-24 bg-slate-50 border-slate-200 resize-none"
               />
               <p className="text-xs text-slate-500">Help the AI understand you better</p>
+            </div>
+          </div>
+
+          {/* Gmail Integration */}
+          <div className="bg-white rounded-2xl p-6 border border-slate-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Mail className="w-5 h-5 text-red-500" />
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">Gmail Calendar Sync</h2>
+                  <p className="text-sm text-slate-600 mt-1">Connect your Gmail account to sync your calendar</p>
+                </div>
+              </div>
+              <Button
+                onClick={handleConnectGmail}
+                disabled={isConnectingGmail}
+                className="rounded-xl bg-red-500 hover:bg-red-600 text-white"
+              >
+                {isConnectingGmail ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Connecting...
+                  </>
+                ) : (
+                  "Connect Gmail"
+                )}
+              </Button>
             </div>
           </div>
 
