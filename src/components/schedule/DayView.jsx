@@ -200,37 +200,7 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden flex-1">
-      {/* Anytime tasks */}
-      {untimedTasks.length > 0 && (
-        <div className="border-b border-slate-100 px-4 py-3">
-          <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-2">Anytime</p>
-          <div className="flex flex-wrap gap-2">
-            {untimedTasks.map((task) => {
-              const done = completedIds.has(task.id);
-              const color = CATEGORY_COLORS[task.category] || CATEGORY_COLORS.other;
-              return (
-                <div
-                  key={task.id}
-                  className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${
-                    done ? "opacity-50 bg-slate-50 border-slate-200 text-slate-400" : color
-                  }`}
-                >
-                  <button onClick={() => onToggle(task, date)} className="flex items-center gap-1.5">
-                    {done ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : <Circle className="w-3.5 h-3.5" />}
-                    <span className={done ? "line-through" : ""}>{task.name}</span>
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onRemoveTask?.(task); }}
-                    className="opacity-0 group-hover:opacity-60 hover:!opacity-100 p-0.5 rounded-full hover:bg-black/10 transition-opacity"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+
 
       {/* Hourly timeline */}
       <div
