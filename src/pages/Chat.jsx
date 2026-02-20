@@ -5,6 +5,7 @@ import { Loader2, Zap } from "lucide-react";
 
 import MessageBubble from "../components/chat/MessageBubble";
 import ChatInput from "../components/chat/ChatInput";
+import AboutMePanel from "../components/chat/AboutMePanel";
 
 export default function Chat() {
   const [conversationId, setConversationId] = useState(null);
