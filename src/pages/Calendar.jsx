@@ -132,10 +132,27 @@ export default function Calendar() {
   const handleSyncCalendar = async () => {
     setIsSyncingCalendar(true);
     try {
-      await base44.functions.invoke("getCalendarEvents");
-      toast.success("Calendar synced!");
+      const response = await base44.functions.invoke("getCalendarEvents");
+      if (response.status === 403) {
+        // User needs to authorize
+        const authUrl = base44.connectors.getAuthorizationUrl('googlecalendar', {
+          scopes: ['https://www.googleapis.com/auth/calendar.readonly', 'email'],
+          redirectUrl: window.location.href,
+        });
+        window.location.href = authUrl;
+      } else {
+        toast.success("Calendar synced!");
+      }
     } catch (error) {
-      toast.info("Please set up Gmail in your account settings to sync calendar");
+      if (error.response?.status === 403) {
+        const authUrl = base44.connectors.getAuthorizationUrl('googlecalendar', {
+          scopes: ['https://www.googleapis.com/auth/calendar.readonly', 'email'],
+          redirectUrl: window.location.href,
+        });
+        window.location.href = authUrl;
+      } else {
+        toast.error("Failed to sync calendar");
+      }
     } finally {
       setIsSyncingCalendar(false);
     }

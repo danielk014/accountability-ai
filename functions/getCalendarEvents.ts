@@ -9,7 +9,14 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const accessToken = await base44.asServiceRole.connectors.getAccessToken('googlecalendar');
+    let accessToken;
+    try {
+      accessToken = await base44.connectors.getAccessToken('googlecalendar');
+    } catch (error) {
+      return Response.json({ 
+        error: 'Google Calendar not connected. Please authorize in Settings.' 
+      }, { status: 403 });
+    }
     
     // Fetch events from Google Calendar
     const now = new Date();
