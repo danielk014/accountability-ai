@@ -35,12 +35,15 @@ export default function SleepChart({ sleepData }) {
       const dayStr = format(dayDate, "yyyy-MM-dd");
       const dayName = format(dayDate, "EEE");
       const sleep = sleepData.find(s => s.date === dayStr);
+      const hours = sleep?.hours || 0;
 
       return {
         day: dayName,
         date: dayStr,
-        hours: sleep?.hours || 0,
+        hours: hours,
         quality: sleep?.quality || "none",
+        sleep_time: sleep?.sleep_time || "",
+        score: hours > 0 ? calculateSleepScore(hours) : 0,
         id: sleep?.id,
       };
     });
