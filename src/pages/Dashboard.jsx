@@ -10,8 +10,6 @@ import { toast } from "sonner";
 import GreetingHeader from "../components/dashboard/GreetingHeader";
 import TaskCard from "../components/dashboard/TaskCard";
 import TaskFormDialog from "../components/tasks/TaskFormDialog";
-import EmailInsights from "../components/dashboard/EmailInsights";
-import CalendarWidget from "../components/dashboard/CalendarWidget";
 
 export default function Dashboard() {
   const [showForm, setShowForm] = useState(false);
@@ -153,11 +151,7 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Calendar & Email */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <CalendarWidget />
-        <EmailInsights />
-      </div>
+
 
       {/* Floating add button */}
       <button

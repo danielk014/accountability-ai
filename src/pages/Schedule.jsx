@@ -2,9 +2,10 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, startOfWeek, addDays, isSameDay, parseISO } from "date-fns";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { useState as useStateLocal } from "react";
 import DayView from "../components/schedule/DayView.jsx";
 import WeekView from "../components/schedule/WeekView.jsx";
 import TaskSidebar from "../components/schedule/TaskSidebar.jsx";
@@ -14,6 +15,7 @@ import CalendarPicker from "../components/schedule/CalendarPicker.jsx";
 export default function Schedule() {
   const [view, setView] = useState("day");
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [isSyncingCalendar, setIsSyncingCalendar] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: user } = useQuery({
@@ -127,6 +129,18 @@ export default function Schedule() {
 
   const isToday = isSameDay(currentDate, new Date());
 
+  const handleSyncCalendar = async () => {
+    setIsSyncingCalendar(true);
+    try {
+      await base44.functions.invoke("getCalendarEvents");
+      toast.success("Calendar synced!");
+    } catch (error) {
+      toast.error("Failed to sync calendar");
+    } finally {
+      setIsSyncingCalendar(false);
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
       {/* Header */}
@@ -152,6 +166,18 @@ export default function Schedule() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Sync calendar */}
+          <Button
+            onClick={handleSyncCalendar}
+            disabled={isSyncingCalendar}
+            variant="outline"
+            size="sm"
+            className="rounded-xl"
+          >
+            <RefreshCw className={`w-4 h-4 ${isSyncingCalendar ? "animate-spin" : ""}`} />
+            <span className="hidden sm:inline ml-1">Sync Calendar</span>
+          </Button>
+
           {/* View toggle */}
           <div className="flex items-center bg-slate-100 rounded-xl p-1">
             {["day", "week"].map((v) => (

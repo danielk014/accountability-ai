@@ -51,9 +51,9 @@ import Admin from './pages/Admin';
 import Chat from './pages/Chat';
 import Dashboard from './pages/Dashboard';
 import Habits from './pages/Habits';
+import Onboarding from './pages/Onboarding';
 import Progress from './pages/Progress';
 import Schedule from './pages/Schedule';
-import Onboarding from './pages/Onboarding';
 import Settings from './pages/Settings';
 import __Layout from './Layout.jsx';
 
@@ -63,9 +63,9 @@ export const PAGES = {
     "Chat": Chat,
     "Dashboard": Dashboard,
     "Habits": Habits,
+    "Onboarding": Onboarding,
     "Progress": Progress,
     "Schedule": Schedule,
-    "Onboarding": Onboarding,
     "Settings": Settings,
 }
 
