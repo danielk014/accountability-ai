@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "./utils";
 import { LayoutDashboard, MessageCircle, BarChart3, ListChecks, CalendarDays, Shield, Loader2, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -23,6 +23,13 @@ export default function Layout({ children, currentPageName }) {
       try {
         const user = await base44.auth.me();
         setMe(user);
+        
+        // Check if user has completed onboarding
+        const profiles = await base44.entities.UserProfile.filter({ created_by: user.email });
+        if (profiles.length === 0 && currentPageName !== "Onboarding") {
+          window.location.href = createPageUrl("Onboarding");
+          return;
+        }
       } catch (error) {
         // User not authenticated, redirect to login
         base44.auth.redirectToLogin();
@@ -31,7 +38,7 @@ export default function Layout({ children, currentPageName }) {
       }
     }
     checkAuth();
-  }, []);
+  }, [currentPageName]);
 
   if (loading) {
     return (
@@ -79,6 +86,13 @@ export default function Layout({ children, currentPageName }) {
                 </Link>
               );
             })}
+            <Link
+              to={createPageUrl("Settings")}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-all"
+              title="Settings"
+            >
+              <span className="hidden sm:inline">Settings</span>
+            </Link>
             <button
               onClick={() => base44.auth.logout()}
               className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-all"
