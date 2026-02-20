@@ -168,14 +168,6 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
     setDragOver(HOURS[Math.min(hour, HOURS.length - 1)]);
   };
 
-  const handleResize = (taskId, newTop, newHeight) => {
-    setPlacedEvents(prev => {
-      const height = Math.max(SLOT_HEIGHT / 2, newHeight);
-      const top = resolveNoOverlap(prev, taskId, Math.max(0, newTop), height);
-      return { ...prev, [taskId]: { top, height } };
-    });
-  };
-
   const handleRemovePlaced = (taskId) => {
     setPlacedEvents(prev => {
       const next = { ...prev };
