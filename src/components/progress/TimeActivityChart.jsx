@@ -43,36 +43,21 @@ export default function TimeActivityChart({ tasks, completions = [] }) {
   const [expandedDay, setExpandedDay] = useState(null);
   const weekStart = startOfWeek(subWeeks(new Date(), -weekOffset));
 
-  // Build hourly data for each day of the week
+  // Build data for each day of the week
   const chartData = Array.from({ length: 7 }).map((_, dayIdx) => {
     const dayDate = addDays(weekStart, dayIdx);
     const dayStr = format(dayDate, "yyyy-MM-dd");
     const dayName = format(dayDate, "EEE");
 
-    // Count tasks by hour
-    const hourCounts = {};
-    const hourTasks = {};
-    HOURS.forEach(h => {
-      hourCounts[h] = 0;
-      hourTasks[h] = [];
-    });
-
-    const dayTasks = tasks.filter(t => taskAppliesOnDate(t, dayDate) && t.is_active);
-    dayTasks.forEach(t => {
-      if (t.scheduled_time) {
-        const hour = parseInt(t.scheduled_time.split(":")[0]);
-        if (hourCounts.hasOwnProperty(hour)) {
-          hourCounts[hour]++;
-          hourTasks[hour].push(t);
-        }
-      }
-    });
+    // Get completed tasks for this day
+    const dayCompletions = completions.filter(c => c.completed_date === dayStr);
+    const completedTaskCount = dayCompletions.length;
 
     return {
       day: dayName,
       date: dayStr,
-      ...hourCounts,
-      tasks: hourTasks,
+      tasks: completedTaskCount,
+      completions: dayCompletions,
     };
   });
 
