@@ -13,12 +13,26 @@ export default function Chat() {
   const [isInitializing, setIsInitializing] = useState(true);
   const messagesEndRef = useRef(null);
 
-  // Load or create conversation — only send check-in prompt if brand new (zero messages)
+  // Determine which proactive check-in to send based on time of day
+  function getProactivePrompt(hour) {
+    if (hour >= 5 && hour < 12) {
+      return "SYSTEM_PROACTIVE: It's morning. Check my tasks for today, give me a warm morning briefing of what's on my schedule, and ask how I'm feeling about the day ahead.";
+    } else if (hour >= 12 && hour < 17) {
+      return "SYSTEM_PROACTIVE: It's midday. Check which of my tasks today are completed and which are still pending. Remind me about any incomplete tasks and ask how my day is going so far.";
+    } else {
+      return "SYSTEM_PROACTIVE: It's evening. Review how my day went — check all my tasks for today, see which ones I completed and which I missed. Give me a warm end-of-day summary, celebrate what I did, gently note what I missed, and ask how I'm feeling overall.";
+    }
+  }
+
+  // Load or create conversation — send proactive check-in once per day
   useEffect(() => {
     async function init() {
       const conversations = await base44.agents.listConversations({
         agent_name: "accountability_partner",
       });
+
+      const today = new Date().toISOString().split("T")[0];
+      const hour = new Date().getHours();
 
       let conv;
 
@@ -27,7 +41,18 @@ export default function Chat() {
         setConversationId(conv.id);
         setMessages(conv.messages || []);
         setIsInitializing(false);
-        // Never auto-send anything — user already has a conversation history
+
+        // Check if we already sent a proactive message today
+        const lastProactive = localStorage.getItem("last_proactive_checkin");
+        if (lastProactive !== today) {
+          localStorage.setItem("last_proactive_checkin", today);
+          setIsLoading(true);
+          const freshConv = await base44.agents.getConversation(conv.id);
+          await base44.agents.addMessage(freshConv, {
+            role: "user",
+            content: getProactivePrompt(hour),
+          });
+        }
       } else {
         conv = await base44.agents.createConversation({
           agent_name: "accountability_partner",
@@ -36,7 +61,7 @@ export default function Chat() {
         setConversationId(conv.id);
         setMessages([]);
         setIsInitializing(false);
-        // Only on brand-new conversation: send a single welcome prompt
+        localStorage.setItem("last_proactive_checkin", today);
         setIsLoading(true);
         const freshConv = await base44.agents.getConversation(conv.id);
         await base44.agents.addMessage(freshConv, {
