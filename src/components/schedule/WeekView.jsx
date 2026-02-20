@@ -29,7 +29,7 @@ function taskAppliesOnDate(task, date) {
   if (task.frequency === "weekdays") return isWeekday;
   if (task.frequency === "weekends") return !isWeekday;
   if (task.frequency === dow) return true;
-  if (task.frequency === "once") return true;
+  // "once" tasks only show on the day they were created (or never in week view)
   return false;
 }
 
