@@ -198,18 +198,12 @@ export default function Chat() {
 
           {isLoading && messages[messages.length - 1]?.role === "user" && (
             <div className="flex gap-3">
-              <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center flex-shrink-0">
-                <Zap className="h-4 w-4 text-white" />
-              </div>
-              <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3 shadow-sm">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+              <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
                   <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
                   <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                </div>
               </div>
-            </div>
-          )}
+              </div>
+              )}
 
             <div ref={messagesEndRef} />
           </div>
