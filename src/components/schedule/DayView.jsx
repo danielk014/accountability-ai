@@ -253,7 +253,7 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
                 </span>
               </div>
               {/* Half-hour line */}
-              <div className="absolute left-16 right-0 border-b border-dashed border-slate-100" style={{ top: SLOT_HEIGHT / 2 }} />
+              <div className="absolute left-16 right-0 border-b border-dashed border-slate-100" style={{ top: rowHeights[idx] / 2 }} />
               {/* Regular tasks in this slot */}
               <div className="ml-16 pr-2 pt-1.5 space-y-1">
                 {tasks.map((task) => {
