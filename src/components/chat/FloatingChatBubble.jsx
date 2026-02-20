@@ -65,6 +65,19 @@ export default function FloatingChatBubble({ currentPageName }) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (isOpen && chatWindowRef.current && buttonRef.current &&
+          !chatWindowRef.current.contains(e.target) && 
+          !buttonRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen]);
+
   const handleSend = async (content) => {
     if (!conversationId) return;
     setIsLoading(true);
