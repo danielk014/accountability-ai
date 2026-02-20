@@ -81,7 +81,7 @@ export default function Schedule() {
   const isToday = isSameDay(currentDate, new Date());
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6">
+    <div className="max-w-6xl mx-auto px-4 py-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -127,22 +127,30 @@ export default function Schedule() {
         </div>
       </div>
 
-      {/* Calendar view */}
-      {view === "day" ? (
-        <DayView
-          date={currentDate}
-          tasks={activeTasks}
-          completions={completions}
-          onToggle={(task, date) => toggleCompletionMutation.mutate({ task, date })}
-        />
-      ) : (
-        <WeekView
-          date={currentDate}
-          tasks={activeTasks}
-          completions={completions}
-          onToggle={(task, date) => toggleCompletionMutation.mutate({ task, date })}
-        />
-      )}
+      {/* Calendar + sidebar */}
+      <div className="flex gap-4 items-start">
+        {/* Calendar view */}
+        <div className="flex-1 min-w-0">
+          {view === "day" ? (
+            <DayView
+              date={currentDate}
+              tasks={activeTasks}
+              completions={completions}
+              onToggle={(task, date) => toggleCompletionMutation.mutate({ task, date })}
+            />
+          ) : (
+            <WeekView
+              date={currentDate}
+              tasks={activeTasks}
+              completions={completions}
+              onToggle={(task, date) => toggleCompletionMutation.mutate({ task, date })}
+            />
+          )}
+        </div>
+
+        {/* Task sidebar */}
+        <TaskSidebar tasks={activeTasks} />
+      </div>
     </div>
   );
 }
