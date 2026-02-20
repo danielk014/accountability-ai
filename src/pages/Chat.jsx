@@ -13,26 +13,39 @@ export default function Chat() {
   const [isInitializing, setIsInitializing] = useState(true);
   const messagesEndRef = useRef(null);
 
-  // Load or create conversation
+  // Load or create conversation, then trigger proactive check-in
   useEffect(() => {
     async function init() {
       const conversations = await base44.agents.listConversations({
         agent_name: "accountability_partner",
       });
 
+      let conv;
+      let isNew = false;
+
       if (conversations.length > 0) {
-        const conv = await base44.agents.getConversation(conversations[0].id);
+        conv = await base44.agents.getConversation(conversations[0].id);
         setConversationId(conv.id);
         setMessages(conv.messages || []);
       } else {
-        const conv = await base44.agents.createConversation({
+        conv = await base44.agents.createConversation({
           agent_name: "accountability_partner",
           metadata: { name: "My Accountability Chat" },
         });
         setConversationId(conv.id);
         setMessages([]);
+        isNew = true;
       }
+
       setIsInitializing(false);
+
+      // Trigger proactive check-in from the agent
+      setIsLoading(true);
+      const freshConv = await base44.agents.getConversation(conv.id);
+      const prompt = isNew
+        ? "Hi! I'm opening the app for the first time. Please introduce yourself and ask me about my goals and habits."
+        : "I just opened the app. Please do a proactive check-in: read my tasks and today's completions, then give me a status update and ask about any pending tasks.";
+      await base44.agents.addMessage(freshConv, { role: "user", content: prompt });
     }
     init();
   }, []);
