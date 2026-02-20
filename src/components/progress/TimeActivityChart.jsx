@@ -84,7 +84,7 @@ export default function TimeActivityChart({ tasks, completions = [] }) {
             onClick={() => setWeekOffset(0)}
             className="rounded-lg text-xs h-8 px-3"
           >
-            Today
+            Weekly
           </Button>
           <Button
             variant="ghost"
