@@ -15,9 +15,19 @@ export default function SleepChart({ sleepData }) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [formData, setFormData] = useState({ date: "", hours: "", quality: "good" });
+  const [formData, setFormData] = useState({ date: "", hours: "", sleep_time: "", quality: "good" });
   const queryClient = useQueryClient();
   const weekStart = startOfWeek(subWeeks(new Date(), -weekOffset));
+
+  // Calculate sleep quality score (0-10) based on hours and target of 7-9 hours for adult males
+  const calculateSleepScore = (hours) => {
+    if (hours < 4) return 2;
+    if (hours < 6) return 4;
+    if (hours < 7) return 6;
+    if (hours <= 9) return 10;
+    if (hours <= 10) return 8;
+    return 6;
+  };
 
   const chartData = useMemo(() => {
     return Array.from({ length: 7 }).map((_, dayIdx) => {
