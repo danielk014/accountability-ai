@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import ReminderSettings from "./ReminderSettings";
+import TimePickerInput from "./TimePickerInput";
 
 const CATEGORIES = [
   { value: "health", label: "Health & Fitness" },
@@ -132,13 +133,10 @@ export default function TaskFormDialog({ open, onOpenChange, onSubmit, task, def
             </div>
           )}
           <div className="space-y-2">
-            <Label htmlFor="time">Scheduled time (optional)</Label>
-            <Input
-              id="time"
-              type="time"
+            <Label>Scheduled time (optional)</Label>
+            <TimePickerInput
               value={formData.scheduled_time}
-              onChange={(e) => setFormData({ ...formData, scheduled_time: e.target.value })}
-              className="rounded-xl"
+              onChange={(time) => setFormData({ ...formData, scheduled_time: time })}
             />
           </div>
           <div className="space-y-2">
