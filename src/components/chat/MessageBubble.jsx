@@ -127,20 +127,20 @@ export default function MessageBubble({ message }) {
           </div>
         )}
         {message.tool_calls?.filter(tc => {
-          const n = (tc?.name || '').toLowerCase();
-          return n !== 'read_task' && n !== 'read_taskcompletion';
-        }).length > 0 && (
-          <div className="space-y-1 mt-1">
-            {message.tool_calls
-              .filter(tc => {
-                const n = (tc?.name || '').toLowerCase();
-                return n !== 'read_task' && n !== 'read_taskcompletion';
-              })
-              .map((tc, idx) => (
-                <FunctionDisplay key={idx} toolCall={tc} />
-              ))}
-          </div>
-        )}
+           const n = (tc?.name || '').toLowerCase();
+           return !n.includes('read_') && !n.includes('update_');
+         }).length > 0 && (
+           <div className="space-y-1 mt-1">
+             {message.tool_calls
+               .filter(tc => {
+                 const n = (tc?.name || '').toLowerCase();
+                 return !n.includes('read_') && !n.includes('update_');
+               })
+               .map((tc, idx) => (
+                 <FunctionDisplay key={idx} toolCall={tc} />
+               ))}
+           </div>
+         )}
       </div>
     </div>
   );

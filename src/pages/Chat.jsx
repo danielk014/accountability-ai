@@ -138,10 +138,15 @@ export default function Chat() {
     "SYSTEM_PROACTIVE_EVENING:",
     "[AI Coaching]:",
   ];
-  const displayMessages = messages.filter(m =>
-    m.role !== "system" &&
-    !(m.role === "user" && HIDDEN_PROMPTS.some(p => m.content?.startsWith(p)))
-  );
+  const displayMessages = messages.filter(m => {
+    // Hide system messages
+    if (m.role === "system") return false;
+    // Hide tool call messages
+    if (m.tool_calls?.length > 0 && !m.content) return false;
+    // Hide hidden prompts
+    if (m.role === "user" && HIDDEN_PROMPTS.some(p => m.content?.startsWith(p))) return false;
+    return true;
+  });
 
   if (isInitializing) {
     return (
