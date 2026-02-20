@@ -84,15 +84,9 @@ function EventCard({ task, top, height, done, onToggle, onResize, onRemove, colo
         <span className={`text-xs font-medium flex-1 leading-tight ${done ? "line-through" : ""}`}>
           {task.name}
         </span>
-        {task.streak > 0 && (
-          <span className="text-xs text-amber-500 font-bold flex-shrink-0">🔥{task.streak}</span>
-        )}
         <button
-          onClick={() => onRemove(task.id)}
-          className="opacity-0 hover:opacity-100 group-hover:opacity-60 flex-shrink-0 p-0.5 rounded hover:bg-black/10"
-          style={{ opacity: undefined }}
-          onMouseEnter={e => e.currentTarget.style.opacity = "1"}
-          onMouseLeave={e => e.currentTarget.style.opacity = "0.3"}
+          onClick={(e) => { e.stopPropagation(); onRemove(task.id); }}
+          className="flex-shrink-0 p-0.5 rounded hover:bg-black/10 opacity-50 hover:opacity-100 transition-opacity"
         >
           <X className="w-3 h-3" />
         </button>
