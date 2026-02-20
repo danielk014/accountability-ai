@@ -205,9 +205,14 @@ export default function ContextSidebar() {
   const queryClient = useQueryClient();
   const [collapsed, setCollapsed] = useState(true);
 
+  const { data: user } = useQuery({
+    queryKey: ["me"],
+    queryFn: () => base44.auth.me(),
+  });
+
   const { data: profiles = [] } = useQuery({
-    queryKey: ["profile"],
-    queryFn: () => base44.entities.UserProfile.list(),
+    queryKey: ["profile", user?.email],
+    queryFn: () => user?.email ? base44.entities.UserProfile.filter({ created_by: user.email }) : [],
   });
   const profile = profiles[0];
 
