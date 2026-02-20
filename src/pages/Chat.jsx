@@ -41,7 +41,7 @@ export default function Chat() {
         const freshConv = await base44.agents.getConversation(conv.id);
         await base44.agents.addMessage(freshConv, {
           role: "user",
-          content: "Hi! I'm opening the app for the first time. Please introduce yourself briefly and ask me about my goals.",
+          content: "Hi! I'm opening the app for the first time. Please introduce yourself and then ask me about my life goals, what I want to achieve, and what my weekly schedule looks like. Help me figure out what habits and tasks I should add to my days. Ask me questions one at a time to understand my life and goals deeply, then give me personalized advice and help me schedule my week.",
         });
       }
     }
