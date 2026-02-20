@@ -56,22 +56,26 @@ export default function CalendarPicker({ selectedDate, onSelectDate }) {
           </div>
 
           <div className="grid grid-cols-7 gap-2">
-            {allDays.map((day, i) => {
+            {/* Empty cells for days before month starts */}
+            {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+              <div key={`empty-${i}`} />
+            ))}
+            
+            {/* Days of current month */}
+            {daysInMonth.map((day) => {
               const isSelected = isSameDay(day, selectedDate || new Date());
               const isToday = isSameDay(day, new Date());
-              const isCurrentMonth = day.getMonth() === baseMonth.getMonth();
 
               return (
                 <button
-                  key={i}
+                  key={day.toISOString()}
                   onClick={() => {
                     onSelectDate(day);
                     setOpen(false);
                   }}
-                  disabled={!isCurrentMonth}
                   className={`
                     h-9 w-9 rounded-lg text-xs font-medium transition-all
-                    ${isSelected ? "bg-indigo-600 text-white" : isCurrentMonth ? "text-slate-700 hover:bg-slate-100" : "text-slate-300"}
+                    ${isSelected ? "bg-indigo-600 text-white" : "text-slate-700 hover:bg-slate-100"}
                     ${isToday && !isSelected ? "border border-indigo-300" : ""}
                   `}
                 >
