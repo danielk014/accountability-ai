@@ -98,8 +98,8 @@ Be direct. Be intense. Use their actual numbers. Don't be generic.`;
 
   return (
     <TooltipProvider>
-      <div className="border-t border-slate-200 bg-white px-4 py-3">
-        <div className="flex items-end gap-2 max-w-3xl mx-auto">
+      <div className={compact ? "" : "border-t border-slate-200 bg-white px-4 py-3"}>
+        <div className={`flex items-end gap-2 ${compact ? "" : "max-w-3xl mx-auto"}`}>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
