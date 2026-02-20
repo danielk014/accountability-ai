@@ -97,10 +97,13 @@ export default function FloatingChatBubble({ currentPageName }) {
     });
   };
 
+  if (currentPageName === "Chat") return null;
+
   return (
     <>
       {/* Floating button */}
       <motion.button
+        ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
         className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center z-40"
         whileHover={{ scale: 1.1 }}
