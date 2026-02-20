@@ -38,8 +38,9 @@ function taskAppliesOnDate(task, date) {
   return false;
 }
 
-export default function TimeActivityChart({ tasks, completions }) {
+export default function TimeActivityChart({ tasks, completions = [] }) {
   const [weekOffset, setWeekOffset] = useState(0);
+  const [expandedDay, setExpandedDay] = useState(null);
   const weekStart = startOfWeek(subWeeks(new Date(), -weekOffset));
 
   // Build hourly data for each day of the week
@@ -50,8 +51,10 @@ export default function TimeActivityChart({ tasks, completions }) {
 
     // Count tasks by hour
     const hourCounts = {};
+    const hourTasks = {};
     HOURS.forEach(h => {
       hourCounts[h] = 0;
+      hourTasks[h] = [];
     });
 
     const dayTasks = tasks.filter(t => taskAppliesOnDate(t, dayDate) && t.is_active);
@@ -60,6 +63,7 @@ export default function TimeActivityChart({ tasks, completions }) {
         const hour = parseInt(t.scheduled_time.split(":")[0]);
         if (hourCounts.hasOwnProperty(hour)) {
           hourCounts[hour]++;
+          hourTasks[hour].push(t);
         }
       }
     });
@@ -68,6 +72,7 @@ export default function TimeActivityChart({ tasks, completions }) {
       day: dayName,
       date: dayStr,
       ...hourCounts,
+      tasks: hourTasks,
     };
   });
 
