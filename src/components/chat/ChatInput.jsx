@@ -33,10 +33,11 @@ export default function ChatInput({ onSend, isLoading, onCoachingClick }) {
   const handleCoaching = async () => {
     setLoadingCoaching(true);
     try {
-      const last7Days = completions.slice(0, 100);
-      const completionRate = tasks.length > 0 
-        ? (last7Days.filter(c => tasks.find(t => t.id === c.task_id)).length / (tasks.length * 7)) * 100
-        : 0;
+      const recentDays = 7;
+      const recentCompletions = completions.slice(0, recentDays * Math.max(tasks.length, 1));
+      const completedCount = recentCompletions.filter(c => tasks.find(t => t.id === c.task_id)).length;
+      const totalTaskDays = recentDays * Math.max(tasks.length, 1);
+      const completionRate = totalTaskDays > 0 ? (completedCount / totalTaskDays) * 100 : 0;
       
       const avgSleep = sleep.length > 0 
         ? (sleep.reduce((sum, s) => sum + s.hours, 0) / sleep.length).toFixed(1)
@@ -44,12 +45,6 @@ export default function ChatInput({ onSend, isLoading, onCoachingClick }) {
 
       const poorSleepDays = sleep.filter(s => s.hours < 6).length;
       const excellentSleep = sleep.filter(s => s.hours >= 8).length;
-
-      const recentDays = 7;
-      const recentCompletions = completions.slice(0, recentDays * Math.max(tasks.length, 1));
-      const completedCount = recentCompletions.filter(c => tasks.find(t => t.id === c.task_id)).length;
-      const totalTaskDays = recentDays * Math.max(tasks.length, 1);
-      const completionRate = totalTaskDays > 0 ? (completedCount / totalTaskDays) * 100 : 0;
 
       const prompt = `You are a brutally honest but deeply motivating coach with the intensity of David Goggins, the charisma of Joe Rogan, and the strategic mind of Alex Hormozi. Your job is to read between the lines of this person's data and tell them EXACTLY what's happening - no sugar coating, no fluff. But also remind them of their potential and fire them up to take action.
 
