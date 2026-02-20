@@ -313,7 +313,6 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
                 height={ev.height}
                 done={done}
                 onToggle={(t) => onToggle(t, date)}
-                onResize={(id, newTop, newH) => handleResize(id, ev.top + newTop, newH)}
                 onRemove={handleRemovePlaced}
                 color={color}
               />
