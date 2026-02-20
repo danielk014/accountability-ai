@@ -118,7 +118,7 @@ export default function TimeActivityChart({ tasks, completions = [] }) {
       {/* Daily schedule for selected day */}
       {expandedDay && (
         <div className="mt-6 p-4 rounded-xl bg-slate-50 border border-slate-100">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-4">
             <p className="text-sm font-semibold text-slate-800">
               {format(new Date(expandedDay), "EEEE, MMM d")} Schedule
             </p>
@@ -126,19 +126,37 @@ export default function TimeActivityChart({ tasks, completions = [] }) {
               <ChevronDown className="w-4 h-4 rotate-180" />
             </button>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1">
             {chartData.find(d => d.date === expandedDay)?.completions?.length > 0 ? (
-              chartData.find(d => d.date === expandedDay).completions.sort((a, b) => {
-                const timeA = a.completed_at || "00:00";
-                const timeB = b.completed_at || "00:00";
-                return timeA.localeCompare(timeB);
-              }).map(c => (
-                <div key={c.id} className="flex items-center gap-3 text-sm text-slate-700">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
-                  <span className="flex-1 font-medium">{c.task_name}</span>
-                  {c.completed_at && <span className="text-xs text-slate-500 bg-white rounded px-2 py-1">{c.completed_at}</span>}
-                </div>
-              ))
+              (() => {
+                const dayCompletions = chartData.find(d => d.date === expandedDay).completions.sort((a, b) => {
+                  const timeA = a.completed_at || "00:00";
+                  const timeB = b.completed_at || "00:00";
+                  return timeA.localeCompare(timeB);
+                });
+                
+                const groupedByHour = {};
+                dayCompletions.forEach(c => {
+                  const hour = c.completed_at ? c.completed_at.split(':')[0] : '00';
+                  if (!groupedByHour[hour]) groupedByHour[hour] = [];
+                  groupedByHour[hour].push(c);
+                });
+                
+                return Object.keys(groupedByHour).sort().map(hour => (
+                  <div key={hour}>
+                    <p className="text-xs font-semibold text-slate-500 px-2 py-1">{hour}:00</p>
+                    <div className="space-y-1 pl-3 border-l-2 border-slate-200">
+                      {groupedByHour[hour].map(c => (
+                        <div key={c.id} className="flex items-center gap-2 text-sm py-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
+                          <span className="text-slate-700">{c.task_name}</span>
+                          {c.completed_at && <span className="text-xs text-slate-500 ml-auto">{c.completed_at}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ));
+              })()
             ) : (
               <p className="text-xs text-slate-500">No tasks completed on this day</p>
             )}
