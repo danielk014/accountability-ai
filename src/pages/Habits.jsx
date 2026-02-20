@@ -77,7 +77,7 @@ export default function Habits() {
     }
   };
 
-  const activeTasks = tasks.filter(t => t.is_active !== false);
+  const activeTasks = tasks.filter(t => t.is_active !== false && t.frequency === "once");
   const archivedTasks = tasks.filter(t => t.is_active === false);
 
   if (isLoading) {
