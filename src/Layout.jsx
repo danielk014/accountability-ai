@@ -12,7 +12,6 @@ const navItems = [
   { name: "Schedule", icon: CalendarDays, page: "Schedule" },
   { name: "To Do", icon: ListChecks, page: "Habits" },
   { name: "Progress", icon: BarChart3, page: "Progress" },
-  { name: "Admin", icon: Shield, page: "Admin", adminOnly: true },
 ];
 
 export default function Layout({ children, currentPageName }) {
@@ -45,7 +44,7 @@ export default function Layout({ children, currentPageName }) {
     );
   }
 
-  const visibleItems = navItems.filter(item => !item.adminOnly || me?.role === "admin");
+
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -62,7 +61,7 @@ export default function Layout({ children, currentPageName }) {
           </div>
 
           <nav className="flex items-center gap-1">
-            {visibleItems.map(item => {
+            {navItems.map(item => {
               const isActive = currentPageName === item.page;
               return (
                 <Link
