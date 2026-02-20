@@ -41,7 +41,7 @@ function taskAppliesOnDate(task, date) {
 export default function TimeActivityChart({ tasks, completions = [] }) {
   const [weekOffset, setWeekOffset] = useState(0);
   const [expandedDay, setExpandedDay] = useState(null);
-  const weekStart = startOfWeek(subWeeks(new Date(), -weekOffset));
+  const weekStart = startOfWeek(subWeeks(new Date(), -weekOffset), { weekStartsOn: 1 });
 
   // Build data for each day of the week
   const chartData = Array.from({ length: 7 }).map((_, dayIdx) => {
