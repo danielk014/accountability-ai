@@ -49,12 +49,12 @@ export default function Dashboard() {
   const dayOfWeek = format(new Date(), "EEEE").toLowerCase();
   const isWeekday = !["saturday", "sunday"].includes(dayOfWeek);
   const todaysTasks = activeTasks.filter(t => {
+    if (t.frequency === "once") return t.scheduled_date === today;
     if (t.frequency === "daily") return true;
     if (t.frequency === "weekdays") return isWeekday;
     if (t.frequency === "weekends") return !isWeekday;
     if (t.frequency === dayOfWeek) return true;
-    if (t.frequency === "once") return !completedTaskIds.has(t.id);
-    return true;
+    return false;
   });
 
   const completedToday = todaysTasks.filter(t => completedTaskIds.has(t.id)).length;
