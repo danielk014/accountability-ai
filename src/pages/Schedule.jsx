@@ -99,6 +99,14 @@ export default function Schedule() {
     setCurrentDate(d);
   };
 
+  const onDropTask = async (taskId, time, height) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
+      await base44.entities.Task.update(taskId, { scheduled_time: time });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    }
+  };
+
   const headerLabel =
     view === "day"
       ? format(currentDate, "EEEE, MMMM d")
