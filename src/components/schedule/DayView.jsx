@@ -134,17 +134,43 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
     return Math.max(0, clientY - rect.top);
   }, []);
 
+  // Returns a non-overlapping top for a given taskId, desired top, and height
+  const resolveNoOverlap = useCallback((currentEvents, taskId, desiredTop, height) => {
+    const others = Object.entries(currentEvents)
+      .filter(([id]) => id !== taskId)
+      .map(([, ev]) => ev)
+      .sort((a, b) => a.top - b.top);
+
+    let top = Math.max(0, desiredTop);
+
+    // Keep nudging down until no collision
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const other of others) {
+        const overlapStart = Math.max(top, other.top);
+        const overlapEnd = Math.min(top + height, other.top + other.height);
+        if (overlapEnd > overlapStart) {
+          // Push down below this event
+          top = other.top + other.height;
+          changed = true;
+        }
+      }
+    }
+    return top;
+  }, []);
+
   const handleDrop = (e) => {
     e.preventDefault();
     const taskId = e.dataTransfer.getData("taskId");
     if (!taskId) return;
     const yPx = getGridTop(e.clientY);
-    // snap to half-hour
     const snapped = Math.round(yPx / (SLOT_HEIGHT / 2)) * (SLOT_HEIGHT / 2);
-    setPlacedEvents(prev => ({
-      ...prev,
-      [taskId]: { top: snapped, height: SLOT_HEIGHT },
-    }));
+    const height = SLOT_HEIGHT;
+    setPlacedEvents(prev => {
+      const top = resolveNoOverlap(prev, taskId, snapped, height);
+      return { ...prev, [taskId]: { top, height } };
+    });
     onDropTask?.(taskId, snapped, SLOT_HEIGHT);
     setDragOver(null);
   };
@@ -158,10 +184,11 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
   };
 
   const handleResize = (taskId, newTop, newHeight) => {
-    setPlacedEvents(prev => ({
-      ...prev,
-      [taskId]: { top: Math.max(0, newTop), height: Math.max(SLOT_HEIGHT / 2, newHeight) },
-    }));
+    setPlacedEvents(prev => {
+      const height = Math.max(SLOT_HEIGHT / 2, newHeight);
+      const top = resolveNoOverlap(prev, taskId, Math.max(0, newTop), height);
+      return { ...prev, [taskId]: { top, height } };
+    });
   };
 
   const handleRemovePlaced = (taskId) => {
