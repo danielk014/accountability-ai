@@ -25,11 +25,15 @@ const CATEGORY_BLOCK = {
 function taskAppliesOnDate(task, date) {
   const dow = format(date, "EEEE").toLowerCase();
   const isWeekday = !["saturday", "sunday"].includes(dow);
+  const dateStr = format(date, "yyyy-MM-dd");
+
+  if (task.frequency === "once") {
+    return task.scheduled_date === dateStr;
+  }
   if (task.frequency === "daily") return true;
   if (task.frequency === "weekdays") return isWeekday;
   if (task.frequency === "weekends") return !isWeekday;
   if (task.frequency === dow) return true;
-  // "once" tasks only show on the day they were created (or never in week view)
   return false;
 }
 
