@@ -284,7 +284,6 @@ export default function Chat() {
               key={i}
               className="flex gap-3 items-start group"
               onContextMenu={(e) => { e.preventDefault(); setIsSelectionMode(true); handleToggleSelect(i.toString()); }}
-              onLongPress={() => { setIsSelectionMode(true); handleToggleSelect(i.toString()); }}
             >
               {isSelectionMode && (
                 <button
@@ -298,17 +297,8 @@ export default function Chat() {
                   )}
                 </button>
               )}
-              <div className="flex-1 relative">
+                <div className="flex-1">
                 <MessageBubble message={msg} />
-                {selectedIds.has(i.toString()) && (
-                  <button
-                    onClick={() => handleToggleSelect(i.toString())}
-                    className="absolute top-0 right-0 p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition"
-                    title="Delete message"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
               </div>
             </div>
           ))}
