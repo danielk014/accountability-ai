@@ -5,8 +5,8 @@ import { format, startOfWeek, addDays, isSameDay, parseISO } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import DayView from "../components/schedule/DayView";
-import WeekView from "../components/schedule/WeekView";
+import DayView from "../components/schedule/DayView.jsx";
+import WeekView from "../components/schedule/WeekView.jsx";
 
 export default function Schedule() {
   const [view, setView] = useState("day");
