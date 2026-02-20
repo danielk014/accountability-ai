@@ -113,6 +113,14 @@ export default function Schedule() {
               Today
             </button>
           )}
+          <Button
+            onClick={() => setShowForm(true)}
+            size="sm"
+            className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white"
+          >
+            <Plus className="w-4 h-4 mr-1" />
+            Add task
+          </Button>
         </div>
 
         <div className="flex items-center gap-2">
