@@ -279,6 +279,15 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
     onDropTask?.(taskId, newTime);
   }, [localData, onDropTask]);
 
+  const handleRemoveTask = useCallback((task) => {
+    setLocalData(prev => {
+      const updated = { ...prev };
+      delete updated[task.id];
+      return updated;
+    });
+    onRemoveTask?.(task);
+  }, [onRemoveTask]);
+
   const handleResizeEnd = useCallback((taskId, finalTop, finalHeight) => {
     const newTime = topToTime(finalTop);
     const durationMin = Math.round(topToMinutes(finalHeight) / 15) * 15;
