@@ -55,7 +55,7 @@ Remember: Be supportive, celebrate wins, and help them stay accountable to their
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-3-5-sonnet-20241022',
+        model: 'claude-4-5-sonnet-20250514',
         max_tokens: 1024,
         system: systemPrompt,
         messages: conversationHistory.length > 0 
