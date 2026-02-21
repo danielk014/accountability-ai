@@ -112,7 +112,7 @@ export default function Calendar() {
 
   // Sidebar shows only untimed tasks that apply today (so they can be dragged to a time slot)
   const sidebarTasks = activeTasks.filter(
-    (t) => !t.scheduled_time && taskAppliesOnDate(t, currentDate)
+    (t) => !t.scheduled_time?.trim() && taskAppliesOnDate(t, currentDate)
   );
 
   const navigate = (dir) => {
