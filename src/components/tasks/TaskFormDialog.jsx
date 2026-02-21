@@ -68,13 +68,16 @@ export default function TaskFormDialog({ open, onOpenChange, onSubmit, task, def
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formData.name.trim()) return;
-    onSubmit({
+    const submitData = {
       ...formData,
+      // Explicitly null out scheduled_time if empty so it's never saved as ""
+      scheduled_time: formData.scheduled_time && formData.scheduled_time.trim() !== "" ? formData.scheduled_time : null,
       is_active: true,
       streak: task?.streak || 0,
       best_streak: task?.best_streak || 0,
       total_completions: task?.total_completions || 0,
-    });
+    };
+    onSubmit(submitData);
   };
 
   return (
