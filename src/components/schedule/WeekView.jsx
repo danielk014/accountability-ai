@@ -307,7 +307,7 @@ export default function WeekView({ date, tasks, completions, onToggle, onDropTas
                   onToggle={() => onToggle(task, day)}
                   onRemove={() => handleRemoveTask(task)}
                   onMoveEnd={handleMoveEnd}
-                  allTasks={timedTasks}
+                  days={days}
                 />
               ))}
 
