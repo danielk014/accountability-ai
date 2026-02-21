@@ -368,7 +368,7 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
               done={done}
               allCards={timedCards}
               onToggle={(t) => onToggle(t, date)}
-              onRemove={(t) => onRemoveTask?.(t)}
+              onRemove={handleRemoveTask}
               onMoveEnd={handleMoveEnd}
               onResizeEnd={handleResizeEnd}
             />
