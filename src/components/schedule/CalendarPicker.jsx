@@ -26,42 +26,40 @@ export default function CalendarPicker({ selectedDate, onSelectDate }) {
       </button>
 
       {open && (
-        <div className="absolute top-full mt-2 right-0 z-50 bg-white border border-slate-200 rounded-2xl shadow-xl p-4">
-          <div className="flex items-center justify-between mb-4">
+        <div className="absolute top-full mt-2 right-0 z-50 bg-white border border-slate-200 rounded-2xl shadow-xl p-3 w-64">
+          <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-slate-800">
               {format(baseMonth, "MMMM yyyy")}
             </h3>
-            <div className="flex gap-1">
+            <div className="flex gap-0.5">
               <button
                 onClick={handlePrevMonth}
-                className="p-1 hover:bg-slate-100 rounded-lg transition"
+                className="p-1.5 hover:bg-slate-100 rounded-lg transition"
               >
-                <ChevronLeft className="w-4 h-4 text-slate-500" />
+                <ChevronLeft className="w-3.5 h-3.5 text-slate-500" />
               </button>
               <button
                 onClick={handleNextMonth}
-                className="p-1 hover:bg-slate-100 rounded-lg transition"
+                className="p-1.5 hover:bg-slate-100 rounded-lg transition"
               >
-                <ChevronRight className="w-4 h-4 text-slate-500" />
+                <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-7 gap-1 mb-2">
+          <div className="grid grid-cols-7 mb-1">
             {DAYS_SHORT.map(day => (
-              <div key={day} className="w-9 text-center text-xs font-medium text-slate-400 py-2">
+              <div key={day} className="flex items-center justify-center h-7 text-xs font-medium text-slate-400">
                 {day}
               </div>
             ))}
           </div>
 
-          <div className="grid grid-cols-7 gap-2">
-            {/* Empty cells for days before month starts */}
+          <div className="grid grid-cols-7">
             {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-              <div key={`empty-${i}`} />
+              <div key={`empty-${i}`} className="h-8" />
             ))}
             
-            {/* Days of current month */}
             {daysInMonth.map((day) => {
               const isSelected = isSameDay(day, selectedDate || new Date());
               const isToday = isSameDay(day, new Date());
@@ -74,9 +72,9 @@ export default function CalendarPicker({ selectedDate, onSelectDate }) {
                     setOpen(false);
                   }}
                   className={`
-                    h-9 w-9 rounded-lg text-xs font-medium transition-all
+                    flex items-center justify-center h-8 w-full rounded-lg text-xs font-medium transition-all
                     ${isSelected ? "bg-indigo-600 text-white" : "text-slate-700 hover:bg-slate-100"}
-                    ${isToday && !isSelected ? "border border-indigo-300" : ""}
+                    ${isToday && !isSelected ? "ring-1 ring-indigo-400" : ""}
                   `}
                 >
                   {day.getDate()}
