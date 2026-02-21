@@ -327,8 +327,8 @@ Be like a supportive friend wrapping up the day with them. Warm, genuine, no jud
 
           {displayMessages.length === 0 && (
             <div className="text-center py-20">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mx-auto mb-4">
-                <Zap className="w-8 h-8 text-white" />
+              <div className="w-16 h-16 rounded-2xl bg-[#1e2228] flex items-center justify-center mx-auto mb-4 overflow-hidden">
+                <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/699863bb9965c7b81ed00428/8af80c917_c05151408_logo.png" alt="AI" className="w-14 h-14 object-contain" />
               </div>
               <h2 className="text-xl font-bold text-slate-800 mb-2">Accountable AI</h2>
               <p className="text-slate-500 max-w-md mx-auto text-sm">
