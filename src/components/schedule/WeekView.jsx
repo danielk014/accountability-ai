@@ -58,6 +58,65 @@ function snap(val) {
    return Math.round(val / SNAP) * SNAP;
  }
 
+function TimedTaskBlock({ task, dayStr, localData, completed, color, onToggle, onRemove, onMoveEnd }) {
+   const timeStr = localData?.time || task.scheduled_time;
+   const displayTop = timeToTop(timeStr);
+   const dragStateRef = useRef(null);
+   const [liveTop, setLiveTop] = useState(null);
+   const currentTop = liveTop !== null ? liveTop : displayTop;
+
+   const onPointerDown = useCallback((e) => {
+     e.preventDefault();
+     e.stopPropagation();
+     dragStateRef.current = { startY: e.clientY, startTop: displayTop };
+     e.currentTarget.setPointerCapture(e.pointerId);
+   }, [displayTop]);
+
+   const onPointerMove = useCallback((e) => {
+     if (!dragStateRef.current) return;
+     const { startY, startTop } = dragStateRef.current;
+     const dy = e.clientY - startY;
+     const newTop = Math.max(0, startTop + dy);
+     setLiveTop(snap(newTop));
+   }, []);
+
+   const onPointerUp = useCallback((e) => {
+     if (!dragStateRef.current) return;
+     const finalTop = liveTop !== null ? liveTop : displayTop;
+     dragStateRef.current = null;
+     setLiveTop(null);
+     onMoveEnd(task.id, dayStr, Math.max(0, finalTop));
+   }, [liveTop, displayTop, task.id, dayStr, onMoveEnd]);
+
+   return (
+     <div
+       style={{ top: currentTop + 1, height: SLOT_HEIGHT - 3, zIndex: 5, position: "absolute", left: 2, right: 2 }}
+       className={`rounded border-l-2 shadow-sm select-none overflow-visible ${completed ? "opacity-40 bg-slate-50 border-l-slate-200" : color}`}
+       onPointerMove={onPointerMove}
+       onPointerUp={onPointerUp}
+       onPointerCancel={onPointerUp}
+     >
+       <div
+         className="flex items-center gap-1 px-1.5 py-0.5 h-full cursor-grab active:cursor-grabbing group"
+         onPointerDown={onPointerDown}
+       >
+         <button className="flex-shrink-0 z-20" onClick={(e) => { e.stopPropagation(); onToggle(); }}>
+           {completed
+             ? <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500 flex-shrink-0" />
+             : <Circle className="w-2.5 h-2.5 flex-shrink-0 opacity-50" />}
+         </button>
+         <span className={`text-xs font-semibold truncate flex-1 ${completed ? "line-through" : ""}`}>{task.name}</span>
+         <button
+           className="flex-shrink-0 p-0.5 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity z-20"
+           onClick={(e) => { e.stopPropagation(); onRemove(); }}
+         >
+           <X className="w-2.5 h-2.5" />
+         </button>
+       </div>
+     </div>
+   );
+ }
+
 export default function WeekView({ date, tasks, completions, onToggle, onDropTask, onRemoveTask }) {
    const weekStart = startOfWeek(date, { weekStartsOn: 1 });
    const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
