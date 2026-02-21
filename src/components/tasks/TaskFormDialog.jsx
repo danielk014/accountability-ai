@@ -72,6 +72,7 @@ export default function TaskFormDialog({ open, onOpenChange, onSubmit, task, def
       ...formData,
       // Explicitly null out scheduled_time if empty so it's never saved as ""
       scheduled_time: formData.scheduled_time && formData.scheduled_time.trim() !== "" ? formData.scheduled_time : null,
+      scheduled_date: formData.frequency === "once" ? formData.scheduled_date : null,
       is_active: true,
       streak: task?.streak || 0,
       best_streak: task?.best_streak || 0,
