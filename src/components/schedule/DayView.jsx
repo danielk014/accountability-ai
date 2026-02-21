@@ -265,8 +265,8 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
   // Build card descriptors for overlap detection
   const timedCards = timedTasks.map((t) => {
     const ld = localData[t.id];
-    const time = (ld?.time) || t.scheduled_time;
-    const top = timeToTop(time);
+    const time = (ld?.time && isValidTime(ld.time)) ? ld.time : t.scheduled_time;
+    const top = isValidTime(time) ? timeToTop(time) : 0;
     const durationMin = ld?.durationMin ?? 60;
     const height = Math.max(MIN_HEIGHT, minutesToTop(durationMin));
     return { id: t.id, task: t, top, height };
