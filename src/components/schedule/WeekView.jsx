@@ -163,13 +163,14 @@ export default function WeekView({ date, tasks, completions, onToggle, onDropTas
           const completedIds = new Set(
             completions.filter((c) => c.completed_date === dateStr).map((c) => c.task_id)
           );
+          const isValidTime = (t) => t && typeof t === "string" && t.trim().length >= 4 && t.includes(":");
           const timedTasks = dayTasks.filter((t) => {
-            const time = localTimes[t.id] !== undefined ? localTimes[t.id] : t.scheduled_time;
-            return time && typeof time === "string" && time.trim().length >= 4 && time.includes(":");
+            const time = localData[t.id]?.time !== undefined ? localData[t.id].time : t.scheduled_time;
+            return isValidTime(time);
           });
           const untimedTasks = dayTasks.filter((t) => {
-            const time = localTimes[t.id] !== undefined ? localTimes[t.id] : t.scheduled_time;
-            return !time || typeof time !== "string" || time.trim().length < 4 || !time.includes(":");
+            const time = localData[t.id]?.time !== undefined ? localData[t.id].time : t.scheduled_time;
+            return !isValidTime(time);
           });
 
           const isDragTarget = dragOver?.dayStr === dateStr;
