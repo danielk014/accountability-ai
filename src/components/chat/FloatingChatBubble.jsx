@@ -120,7 +120,7 @@ export default function FloatingChatBubble({ currentPageName }) {
       <motion.button
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-8 right-8 w-14 h-14 rounded-full bg-[#1e2228] text-white shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center z-40"
+        className="fixed bottom-8 left-8 w-14 h-14 rounded-full bg-[#1e2228] text-white shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center z-40"
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.95 }}
       >
@@ -153,7 +153,7 @@ export default function FloatingChatBubble({ currentPageName }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="fixed bottom-24 right-8 w-96 h-[500px] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col z-40 max-h-[calc(100vh-120px)]"
+            className="fixed bottom-24 left-8 w-96 h-[500px] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col z-40 max-h-[calc(100vh-120px)]"
           >
             {/* Header */}
             <div className="px-4 py-4 border-b border-slate-100 flex-shrink-0">

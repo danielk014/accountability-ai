@@ -191,7 +191,7 @@ async function projectAgenticLoop(history, systemPrompt, projectId, queryClient)
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-4-5-sonnet-20250514',
+        model: 'claude-sonnet-4-5',
         max_tokens: 1024,
         system: systemPrompt,
         tools: PROJECT_ADVISOR_TOOLS,
