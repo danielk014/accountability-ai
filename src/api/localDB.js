@@ -209,6 +209,8 @@ export const localDB = {
     UserProfile:    createEntityStore('UserProfile'),
     TodoItem:       createEntityStore('TodoItem'),
     Sleep:          createEntityStore('Sleep'),
+    Project:        createEntityStore('Project'),
+    ProjectTask:    createEntityStore('ProjectTask'),
   },
   auth: authStore,
 };

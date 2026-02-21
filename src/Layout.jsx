@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "./utils";
-import { LayoutDashboard, MessageCircle, BarChart3, CalendarDays, Timer, User, DollarSign } from "lucide-react";
+import { LayoutDashboard, MessageCircle, BarChart3, CalendarDays, Timer, User, DollarSign, FolderKanban } from "lucide-react";
 import { cn } from "@/lib/utils";
 import FloatingChatBubble from "@/components/chat/FloatingChatBubble";
 import { useAuth } from "@/lib/AuthContext";
@@ -13,6 +13,7 @@ const navItems = [
   { name: "Calendar", icon: CalendarDays, page: "Calendar" },
   { name: "Progress", icon: BarChart3, page: "Progress" },
   { name: "Financials", icon: DollarSign, page: "Financials" },
+  { name: "Projects", icon: FolderKanban, page: "Projects" },
   { name: "Pomodoro", icon: Timer, page: "Pomodoro" },
 ];
 

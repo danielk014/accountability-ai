@@ -57,6 +57,7 @@ import Login from './pages/Login';
 import Onboarding from './pages/Onboarding';
 import Pomodoro from './pages/Pomodoro';
 import Progress from './pages/Progress';
+import Projects from './pages/Projects';
 import Settings from './pages/Settings';
 import __Layout from './Layout.jsx';
 
@@ -71,6 +72,7 @@ export const PAGES = {
     "Onboarding": Onboarding,
     "Pomodoro": Pomodoro,
     "Progress": Progress,
+    "Projects": Projects,
     "Settings": Settings,
 }
 
