@@ -1,5 +1,5 @@
 import React from "react";
-import { GripVertical, Clock, Zap } from "lucide-react";
+import { GripVertical, Clock, Zap, CheckCircle2, Circle } from "lucide-react";
 
 const CATEGORY_COLORS = {
   health: "bg-emerald-100 border-emerald-300 text-emerald-800",
@@ -11,7 +11,7 @@ const CATEGORY_COLORS = {
   other: "bg-gray-100 border-gray-300 text-gray-800",
 };
 
-export default function TaskSidebar({ tasks, onDragStart }) {
+export default function TaskSidebar({ tasks, completedIds = new Set(), onDragStart, onToggle }) {
   return (
     <div className="w-56 flex-shrink-0">
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden sticky top-24">
