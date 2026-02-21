@@ -49,15 +49,15 @@ export default function Layout({ children, currentPageName }) {
 
       {/* Top nav */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="w-full px-6 flex items-center justify-between h-16">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[#1e2228] flex items-center justify-center overflow-hidden">
-              <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/699863bb9965c7b81ed00428/8af80c917_c05151408_logo.png" alt="Logo" className="w-7 h-7 object-contain" />
+        <div className="w-full px-3 sm:px-6 flex items-center justify-between h-14 sm:h-16">
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[#1e2228] flex items-center justify-center overflow-hidden">
+              <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/699863bb9965c7b81ed00428/8af80c917_c05151408_logo.png" alt="Logo" className="w-6 h-6 sm:w-7 sm:h-7 object-contain" />
             </div>
-            <span className="font-bold text-slate-800 text-lg tracking-tight hidden sm:block">Accountable</span>
+            <span className="font-bold text-slate-800 text-base sm:text-lg tracking-tight hidden sm:block">Accountable</span>
           </div>
 
-          <nav className="flex items-center gap-1">
+          <nav className="flex items-center gap-0 sm:gap-1 overflow-x-auto scrollbar-hide">
             {navItems.map(item => {
               const isActive = currentPageName === item.page;
               const showBadge = item.page === 'Chat' && !isActive && unread > 0;
@@ -66,7 +66,7 @@ export default function Layout({ children, currentPageName }) {
                   key={item.page}
                   to={createPageUrl(item.page)}
                   className={cn(
-                    "relative flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all",
+                    "relative flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-xl text-sm font-medium transition-all flex-shrink-0",
                     isActive
                       ? "bg-indigo-50 text-indigo-700"
                       : "text-slate-500 hover:text-slate-700 hover:bg-slate-100"
@@ -84,7 +84,7 @@ export default function Layout({ children, currentPageName }) {
             })}
             <Link
               to={createPageUrl("Settings")}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-all"
+              className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-xl text-sm font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-all flex-shrink-0"
             >
               <span className="hidden sm:inline">Settings</span>
             </Link>
@@ -92,14 +92,14 @@ export default function Layout({ children, currentPageName }) {
             {user && (
               <Link
                 to={createPageUrl("Settings")}
-                className="ml-1 pl-2 border-l border-slate-200 flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-slate-100 transition-all"
+                className="ml-1 pl-2 border-l border-slate-200 flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-slate-100 transition-all flex-shrink-0"
                 title="Settings"
               >
                 {user.picture ? (
-                  <img src={user.picture} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+                  <img src={user.picture} alt="" className="w-6 h-6 sm:w-7 sm:h-7 rounded-full object-cover flex-shrink-0" />
                 ) : (
-                  <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                    <User className="w-4 h-4 text-indigo-600" />
+                  <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                    <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-600" />
                   </div>
                 )}
                 <span className="hidden sm:block text-xs font-medium text-slate-600 max-w-[90px] truncate">

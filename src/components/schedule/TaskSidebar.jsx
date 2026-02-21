@@ -13,8 +13,8 @@ const CATEGORY_COLORS = {
 
 export default function TaskSidebar({ tasks, completedIds = new Set(), onDragStart, onToggle }) {
   return (
-    <div className="w-56 flex-shrink-0">
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden sticky top-24">
+    <div className="w-full md:w-56 md:flex-shrink-0">
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden md:sticky md:top-24">
         <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
           <Zap className="w-4 h-4 text-indigo-500" />
           <span className="text-sm font-semibold text-slate-700">Tasks</span>

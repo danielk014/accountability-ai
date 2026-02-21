@@ -164,15 +164,15 @@ export default function Calendar() {
 
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-slate-800">Calendar</h1>
+    <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+      {/* Header row 1: title + add task */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Calendar</h1>
           <button
             onClick={() => setCurrentDate(new Date())}
             disabled={isToday}
-            className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all ${
+            className={`text-xs px-2.5 py-1.5 rounded-full font-medium transition-all ${
               isToday
                 ? "bg-slate-100 text-slate-400 cursor-default"
                 : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm"
@@ -180,51 +180,50 @@ export default function Calendar() {
           >
             Today
           </button>
-          <Button
-            onClick={() => setShowForm(true)}
-            size="sm"
-            className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white"
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            Add task
-          </Button>
+        </div>
+        <Button
+          onClick={() => setShowForm(true)}
+          size="sm"
+          className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white"
+        >
+          <Plus className="w-4 h-4 sm:mr-1" />
+          <span className="hidden sm:inline">Add task</span>
+        </Button>
+      </div>
+
+      {/* Header row 2: view toggle + navigation */}
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <div className="flex items-center bg-slate-100 rounded-xl p-1">
+          {["day", "week"].map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all capitalize ${
+                view === v
+                  ? "bg-white text-slate-800 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              {v}
+            </button>
+          ))}
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* View toggle */}
-          <div className="flex items-center bg-slate-100 rounded-xl p-1">
-            {["day", "week"].map((v) => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all capitalize ${
-                  view === v
-                    ? "bg-white text-slate-800 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
-
-          {/* Navigation */}
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-xl h-9 w-9">
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <CalendarPicker selectedDate={currentDate} onSelectDate={setCurrentDate} />
-            <Button variant="ghost" size="icon" onClick={() => navigate(1)} className="rounded-xl h-9 w-9">
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
+        <div className="flex items-center gap-1 sm:gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="rounded-xl h-8 w-8 sm:h-9 sm:w-9">
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <CalendarPicker selectedDate={currentDate} onSelectDate={setCurrentDate} />
+          <Button variant="ghost" size="icon" onClick={() => navigate(1)} className="rounded-xl h-8 w-8 sm:h-9 sm:w-9">
+            <ChevronRight className="w-4 h-4" />
+          </Button>
         </div>
       </div>
 
-      {/* Calendar + sidebar */}
-      <div className="flex gap-4 items-start">
+      {/* Calendar + sidebar — stacked on mobile, side-by-side on md+ */}
+      <div className="flex flex-col md:flex-row gap-4 items-start">
         {/* Calendar view */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 w-full">
           {view === "day" ? (
             <DayView
               date={currentDate}
@@ -251,7 +250,7 @@ export default function Calendar() {
           )}
         </div>
 
-        {/* Task sidebar */}
+        {/* Task sidebar — full width on mobile, fixed on md+ */}
         <TaskSidebar tasks={sidebarTasks} />
       </div>
 
