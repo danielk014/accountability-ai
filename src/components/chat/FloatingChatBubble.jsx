@@ -113,7 +113,7 @@ export default function FloatingChatBubble({ currentPageName }) {
       <motion.button
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 left-6 w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center z-40"
+        className="fixed bottom-6 left-6 w-14 h-14 rounded-full bg-[#1e2228] text-white shadow-lg hover:shadow-xl transition-shadow flex items-center justify-center z-40"
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.95 }}
       >
@@ -136,7 +136,7 @@ export default function FloatingChatBubble({ currentPageName }) {
               exit={{ rotate: -90, opacity: 0 }}
               transition={{ duration: 0.2 }}
             >
-              <MessageCircle className="w-5 h-5" />
+              <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/699863bb9965c7b81ed00428/8af80c917_c05151408_logo.png" alt="AI" className="w-7 h-7 object-contain" />
             </motion.div>
           )}
         </AnimatePresence>
@@ -156,8 +156,8 @@ export default function FloatingChatBubble({ currentPageName }) {
             {/* Header */}
             <div className="px-4 py-4 border-b border-slate-100 flex-shrink-0">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center">
-                  <Zap className="w-4 h-4 text-white" />
+                <div className="w-8 h-8 rounded-lg bg-[#1e2228] flex items-center justify-center overflow-hidden">
+                  <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/699863bb9965c7b81ed00428/8af80c917_c05151408_logo.png" alt="AI" className="w-7 h-7 object-contain" />
                 </div>
                 <div>
                   <p className="text-sm font-bold text-slate-800">Accountable AI</p>
@@ -182,8 +182,8 @@ export default function FloatingChatBubble({ currentPageName }) {
 
               {isLoading && messages[messages.length - 1]?.role === "user" && (
                 <div className="flex gap-3">
-                  <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center flex-shrink-0">
-                    <Zap className="h-4 w-4 text-white" />
+                  <div className="h-8 w-8 rounded-lg bg-[#1e2228] flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/699863bb9965c7b81ed00428/8af80c917_c05151408_logo.png" alt="AI" className="w-7 h-7 object-contain" />
                   </div>
                   <div className="bg-slate-100 rounded-2xl px-3 py-2">
                     <div className="flex items-center gap-1.5">
