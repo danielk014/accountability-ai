@@ -223,35 +223,21 @@ export default function WeekView({ date, tasks, completions, onToggle, onDropTas
                 </div>
               )}
 
-              {/* Timed tasks */}
-              {timedTasks.map((task) => {
-                const timeStr = localTimes[task.id] || task.scheduled_time;
-                const top = timeToTop(timeStr);
-                const done = completedIds.has(task.id);
-                const color = CATEGORY_BLOCK[task.category] || CATEGORY_BLOCK.other;
-                return (
-                  <div
-                    key={task.id}
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData("timedTaskId", task.id);
-                      e.dataTransfer.effectAllowed = "move";
-                    }}
-                    onClick={() => onToggle(task, day)}
-                    className={`absolute left-0.5 right-0.5 rounded border-l-2 shadow-sm cursor-pointer select-none overflow-hidden ${
-                      done ? "opacity-40 bg-slate-50 border-l-slate-200" : color
-                    }`}
-                    style={{ top: top + 1, height: SLOT_HEIGHT - 3, zIndex: 5 }}
-                  >
-                    <div className="flex items-center gap-1 px-1.5 py-0.5 h-full">
-                      {done
-                        ? <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500 flex-shrink-0" />
-                        : <Circle className="w-2.5 h-2.5 flex-shrink-0 opacity-50" />}
-                      <span className={`text-xs font-semibold truncate ${done ? "line-through" : ""}`}>{task.name}</span>
-                    </div>
-                  </div>
-                );
-              })}
+              {/* Timed tasks — draggable & resizable */}
+              {timedTasks.map((task) => (
+                <TimedTaskBlock
+                  key={task.id}
+                  task={task}
+                  dayStr={dateStr}
+                  localData={localData[task.id]}
+                  completed={completedIds.has(task.id)}
+                  color={CATEGORY_BLOCK[task.category] || CATEGORY_BLOCK.other}
+                  onToggle={() => onToggle(task, day)}
+                  onRemove={() => handleRemoveTask(task)}
+                  onMoveEnd={handleMoveEnd}
+                  allTasks={timedTasks}
+                />
+              ))}
 
               {/* Current time line */}
               {nowTop >= 0 && (
