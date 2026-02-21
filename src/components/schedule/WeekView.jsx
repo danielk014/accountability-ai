@@ -121,7 +121,6 @@ function TimedTaskBlock({ task, dayStr, localData, completed, color, onToggle, o
 
    const onPointerUp = useCallback((e) => {
      if (!dragStateRef.current) return;
-     const { type } = dragStateRef.current;
      const finalTop = liveTop !== null ? liveTop : displayTop;
      const finalHeight = liveHeight !== null ? liveHeight : displayHeight;
      const finalDayIdx = liveDayIdx !== null ? liveDayIdx : dragStateRef.current.dayIdx;
@@ -130,7 +129,7 @@ function TimedTaskBlock({ task, dayStr, localData, completed, color, onToggle, o
      setLiveHeight(null);
      setLiveDayIdx(null);
      const finalDayStr = format(days[finalDayIdx], "yyyy-MM-dd");
-     onMoveEnd(task.id, finalDayStr, Math.max(0, finalTop), type === "move" ? undefined : finalHeight);
+     onMoveEnd(task.id, finalDayStr, Math.max(0, finalTop), finalHeight);
    }, [liveTop, liveHeight, liveDayIdx, displayTop, displayHeight, task.id, days, onMoveEnd]);
 
    return (
