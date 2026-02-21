@@ -364,14 +364,9 @@ export function clearHistory() {
 // ─── One-off prompt (no tools, no history) ───────────────────────────────────
 
 export async function sendOneOffPrompt(prompt) {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetch('/api/claude', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': import.meta.env.VITE_ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'claude-sonnet-4-5',
       max_tokens: 2048,
@@ -395,23 +390,16 @@ async function _agenticLoop(history, systemPrompt) {
   );
 
   for (let turn = 0; turn < 8; turn++) {
-    const headers = {
-      'Content-Type': 'application/json',
-      'x-api-key': import.meta.env.VITE_ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    };
-    if (hasPdf) headers['anthropic-beta'] = 'pdfs-2024-09-25';
-
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('/api/claude', {
       method: 'POST',
-      headers,
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-5',
         max_tokens: hasFiles ? 2048 : 1024,
         system: systemPrompt,
         tools: TOOLS,
         messages,
+        ...(hasPdf && { betaHeader: 'pdfs-2024-09-25' }),
       }),
     });
 
