@@ -30,6 +30,15 @@ function topToTime(top) {
   return `${String(Math.min(h, 23)).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
+function isValidTime(t) {
+  if (!t || typeof t !== "string" || t.trim() === "") return false;
+  const parts = t.split(":");
+  if (parts.length < 2) return false;
+  const h = parseInt(parts[0]);
+  const m = parseInt(parts[1]);
+  return !isNaN(h) && !isNaN(m);
+}
+
 function timeToTop(t) {
   const [h, m] = t.split(":").map(Number);
   return ((h - 6) + m / 60) * SLOT_HEIGHT;
