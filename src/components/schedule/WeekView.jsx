@@ -58,7 +58,7 @@ function snap(val) {
    return Math.round(val / SNAP) * SNAP;
  }
 
-function TimedTaskBlock({ task, dayStr, localData, completed, color, onToggle, onRemove, onMoveEnd, allTasks, days }) {
+function TimedTaskBlock({ task, dayStr, localData, completed, color, onToggle, onRemove, onMoveEnd, onDayChange, allTasks, days }) {
    const timeStr = localData?.time || task.scheduled_time;
    const displayTop = timeToTop(timeStr);
    const durationMin = localData?.durationMin ?? 60;
@@ -85,7 +85,7 @@ function TimedTaskBlock({ task, dayStr, localData, completed, color, onToggle, o
        startDayIdx: dayIdx 
      };
      e.currentTarget.setPointerCapture(e.pointerId);
-   }, [displayTop, displayHeight, dayStr, days]);
+   }, [displayTop, displayHeight, dayStr, days, task.id]);
 
    const onPointerMove = useCallback((e) => {
      if (!dragStateRef.current) return;
@@ -97,6 +97,12 @@ function TimedTaskBlock({ task, dayStr, localData, completed, color, onToggle, o
      let newDayIdx = dayIdx;
      if (dx < -80 && dayIdx > 0) newDayIdx--;
      if (dx > 80 && dayIdx < days.length - 1) newDayIdx++;
+
+     // Notify parent of target day change during drag
+     if (newDayIdx !== dayIdx && onDayChange) {
+       const targetDayStr = format(days[newDayIdx], "yyyy-MM-dd");
+       onDayChange(task.id, targetDayStr);
+     }
 
      if (type === "move") {
        const newTop = Math.max(0, startTop + dy);
@@ -117,7 +123,7 @@ function TimedTaskBlock({ task, dayStr, localData, completed, color, onToggle, o
        setLiveHeight(Math.max(MIN_HEIGHT, newHeight));
        setLiveDayIdx(newDayIdx);
      }
-   }, [days]);
+   }, [days, task.id, onDayChange]);
 
    const onPointerUp = useCallback((e) => {
      if (!dragStateRef.current) return;
@@ -215,10 +221,14 @@ export default function WeekView({ date, tasks, completions, onToggle, onDropTas
   const handleMoveEnd = useCallback((taskId, dayStr, finalTop, finalHeight) => {
     const newTime = topToTime(finalTop);
     const durationMin = finalHeight ? Math.round(topToMinutes(finalHeight) / 15) * 15 : 60;
-    // Always save both time and duration to localData so they persist
-    setLocalData(prev => ({ ...prev, [taskId]: { time: newTime, durationMin } }));
+    // Always save both time and duration to localData so they persist, plus the final day
+    setLocalData(prev => ({ ...prev, [taskId]: { time: newTime, durationMin, dayStr } }));
     onDropTask?.(taskId, newTime, dayStr, durationMin);
   }, [onDropTask]);
+
+  const handleDayChange = useCallback((taskId, targetDayStr) => {
+    setLocalData(prev => ({ ...prev, [taskId]: { ...(prev[taskId] || {}), dayStr: targetDayStr } }));
+  }, []);
 
   const handleRemoveTask = useCallback((task) => {
     setLocalData(prev => {
@@ -289,9 +299,18 @@ export default function WeekView({ date, tasks, completions, onToggle, onDropTas
             completions.filter((c) => c.completed_date === dateStr).map((c) => c.task_id)
           );
           const isValidTime = (t) => t && typeof t === "string" && t.trim().length >= 4 && t.includes(":");
-          const timedTasks = dayTasks.filter((t) => {
+          const timedTasks = tasks.filter((t) => {
             const time = localData[t.id]?.time !== undefined ? localData[t.id].time : t.scheduled_time;
-            return isValidTime(time);
+            if (!isValidTime(time)) return false;
+            
+            const draggedToDay = localData[t.id]?.dayStr;
+            if (draggedToDay !== undefined) {
+              // Task is being dragged, render only in target day
+              return draggedToDay === dateStr;
+            }
+            
+            // Task not being dragged, use normal filtering (applies to this day)
+            return taskAppliesOnDate(t, day);
           });
 
           const isDragTarget = dragOver?.dayStr === dateStr;
@@ -334,6 +353,7 @@ export default function WeekView({ date, tasks, completions, onToggle, onDropTas
                   onToggle={() => onToggle(task, day)}
                   onRemove={() => handleRemoveTask(task)}
                   onMoveEnd={handleMoveEnd}
+                  onDayChange={handleDayChange}
                   days={days}
                 />
               ))}
