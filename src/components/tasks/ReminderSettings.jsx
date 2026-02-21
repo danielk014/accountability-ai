@@ -12,7 +12,7 @@ export default function ReminderSettings({ reminderEnabled, reminderTime, remind
     const updated = reminderDays?.includes(day)
       ? reminderDays.filter(d => d !== day)
       : [...(reminderDays || []), day];
-    onChange({ ...{reminderEnabled, reminderTime, reminderDays: updated, reminderType} });
+    onChange({ reminderEnabled, reminderTime, reminderDays: updated, reminderType });
   };
 
   return (
