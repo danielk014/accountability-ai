@@ -253,13 +253,13 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
 
   const timedTasks = dayTasks.filter((t) => {
     const ld = localData[t.id];
-    const time = (ld?.time) || t.scheduled_time;
-    return time && time.trim() !== "";
+    const time = ld?.time !== undefined ? ld.time : t.scheduled_time;
+    return isValidTime(time);
   });
   const untimedTasks = dayTasks.filter((t) => {
     const ld = localData[t.id];
-    const time = (ld?.time) || t.scheduled_time;
-    return !time || time.trim() === "";
+    const time = ld?.time !== undefined ? ld.time : t.scheduled_time;
+    return !isValidTime(time);
   });
 
   // Build card descriptors for overlap detection
