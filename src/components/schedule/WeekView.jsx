@@ -58,12 +58,13 @@ function snap(val) {
    return Math.round(val / SNAP) * SNAP;
  }
 
-export default function WeekView({ date, tasks, completions, onToggle, onDropTask, onAddTask }) {
-  const weekStart = startOfWeek(date, { weekStartsOn: 1 });
-  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-  const gridRefs = useRef({});
-  const [dragOver, setDragOver] = useState(null); // { dayStr, hour }
-  const [localTimes, setLocalTimes] = useState({});
+export default function WeekView({ date, tasks, completions, onToggle, onDropTask, onRemoveTask }) {
+   const weekStart = startOfWeek(date, { weekStartsOn: 1 });
+   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+   const gridRefs = useRef({});
+   const [dragOver, setDragOver] = useState(null); // { dayStr, hour }
+   const [localData, setLocalData] = useState({});
+   const dragState = useRef(null);
 
   const nowHour = new Date().getHours();
   const nowMin = new Date().getMinutes();
