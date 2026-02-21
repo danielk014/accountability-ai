@@ -109,10 +109,9 @@ Please:
 Be like a supportive friend wrapping up the day with them. Warm, genuine, no judgment. Ask follow-up questions and really listen.`;
   }
 
-  // Load or create conversation — send briefing in morning and check-in at 9pm
+  // Load or create conversation — persisted in localStorage to avoid resets on navigation
   useEffect(() => {
     async function init() {
-      // Guard: never send more than one message per page load
       if (checkinSentRef.current) return;
 
       const user = await base44.auth.me();
@@ -120,11 +119,11 @@ Be like a supportive friend wrapping up the day with them. Warm, genuine, no jud
       const hour = new Date().getHours();
       const isMorning = shouldSendBriefing(hour);
       const isEvening = shouldSendEveningCheckin(hour);
-      
-      const briefingKey = `last_briefing_${today}`;
-      const eveningKey = `last_evening_checkin_${today}`;
 
-      // Determine which message to send
+      const briefingKey = `last_briefing_${today}_${user.email}`;
+      const eveningKey = `last_evening_checkin_${today}_${user.email}`;
+      const convKey = `conv_id_${user.email}`;
+
       let shouldSendMessage = false;
       let messageContent = "";
       let storageKey = "";
@@ -139,39 +138,54 @@ Be like a supportive friend wrapping up the day with them. Warm, genuine, no jud
         storageKey = eveningKey;
       }
 
-      // Mark guard immediately so re-mounts never double-fire
       if (shouldSendMessage) {
         checkinSentRef.current = true;
         localStorage.setItem(storageKey, "1");
       }
 
-      const conversations = await base44.agents.listConversations({
-        agent_name: "accountability_partner",
-      });
-
-      // Filter to only get the current user's conversation
-      const userConversation = conversations.find(c => c.created_by === user.email);
-
+      // Try to reuse saved conversation ID first
+      const savedConvId = localStorage.getItem(convKey);
       let conv;
+
+      if (savedConvId) {
+        try {
+          conv = await base44.agents.getConversation(savedConvId);
+          setConversationId(conv.id);
+          setMessages(conv.messages || []);
+          setIsInitializing(false);
+
+          if (shouldSendMessage) {
+            setIsLoading(true);
+            await base44.agents.addMessage(conv, { role: "user", content: messageContent });
+          }
+          return;
+        } catch {
+          // Saved ID is stale, fall through to find/create
+          localStorage.removeItem(convKey);
+        }
+      }
+
+      // Find existing conversation for this user
+      const conversations = await base44.agents.listConversations({ agent_name: "accountability_partner" });
+      const userConversation = conversations.find(c => c.created_by === user.email);
 
       if (userConversation) {
         conv = await base44.agents.getConversation(userConversation.id);
+        localStorage.setItem(convKey, conv.id);
         setConversationId(conv.id);
         setMessages(conv.messages || []);
         setIsInitializing(false);
 
         if (shouldSendMessage) {
           setIsLoading(true);
-          await base44.agents.addMessage(conv, {
-            role: "user",
-            content: messageContent,
-          });
+          await base44.agents.addMessage(conv, { role: "user", content: messageContent });
         }
       } else {
         conv = await base44.agents.createConversation({
           agent_name: "accountability_partner",
           metadata: { name: "My Accountability Chat", user_email: user.email },
         });
+        localStorage.setItem(convKey, conv.id);
         setConversationId(conv.id);
         setMessages([]);
         setIsInitializing(false);
