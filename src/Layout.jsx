@@ -11,9 +11,9 @@ const navItems = [
   { name: "Chat", icon: MessageCircle, page: "Chat" },
   { name: "Dashboard", icon: LayoutDashboard, page: "Dashboard" },
   { name: "Calendar", icon: CalendarDays, page: "Calendar" },
-  { name: "Progress", icon: BarChart3, page: "Progress" },
-  { name: "Financials", icon: DollarSign, page: "Financials" },
   { name: "Projects", icon: FolderKanban, page: "Projects" },
+  { name: "Financials", icon: DollarSign, page: "Financials" },
+  { name: "Progress", icon: BarChart3, page: "Progress" },
   { name: "Pomodoro", icon: Timer, page: "Pomodoro" },
 ];
 
