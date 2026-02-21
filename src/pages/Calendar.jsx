@@ -28,6 +28,14 @@ export default function Calendar() {
     queryFn: () => user?.email ? base44.entities.Task.filter({ created_by: user.email }) : [],
   });
 
+  // Real-time: refresh tasks when AI or other views create/update/delete them
+  React.useEffect(() => {
+    const unsub = base44.entities.Task.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    });
+    return unsub;
+  }, []);
+
   const { data: completions = [] } = useQuery({
     queryKey: ["completions", user?.email],
     queryFn: () => user?.email ? base44.entities.TaskCompletion.filter({ created_by: user.email }, "-completed_date", 500) : [],
