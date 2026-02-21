@@ -207,7 +207,7 @@ export default function Calendar() {
               tasks={activeTasks.filter(t => taskAppliesOnDate(t, currentDate))}
               completions={completions}
               onToggle={(task, date) => toggleCompletionMutation.mutate({ task, date })}
-              onRemoveTask={(task) => removeTaskMutation.mutate(task)}
+              onRemoveTask={(task) => unscheduleTaskMutation.mutate(task)}
               onDropTask={onDropTask}
             />
           ) : (
