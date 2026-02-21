@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "./utils";
-import { LayoutDashboard, MessageCircle, BarChart3, ListChecks, CalendarDays, Shield, Loader2, LogOut } from "lucide-react";
+import { LayoutDashboard, MessageCircle, BarChart3, ListChecks, CalendarDays, Timer, Loader2, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import FloatingChatBubble from "@/components/chat/FloatingChatBubble";
 

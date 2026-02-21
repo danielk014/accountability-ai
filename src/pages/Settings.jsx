@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { ArrowLeft, Loader2, Plus, X, Pencil, Check, Sparkles, Upload, File, User, Briefcase, Users, Target, StickyNote, ChevronDown, ChevronUp } from "lucide-react";
+import ScreentimeUpload from "@/components/screentime/ScreentimeUpload";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "../utils";
 

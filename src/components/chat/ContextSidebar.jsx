@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Plus, X, Brain, ChevronDown, ChevronUp, User, Briefcase, Users, Target, StickyNote, ChevronLeft, ChevronRight, Pencil, Check, Sparkles, Upload, File, Loader2 } from "lucide-react";
+import ScreentimeUpload from "@/components/screentime/ScreentimeUpload";
 import { toast } from "sonner";
 
 const SECTIONS = [
