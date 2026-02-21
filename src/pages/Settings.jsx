@@ -466,6 +466,7 @@ export default function Settings() {
             <h2 className="text-lg font-bold text-slate-900 mb-3">AI Context</h2>
             <p className="text-sm text-slate-500 mb-4">This information helps your AI coach understand you better. Same as the chat sidebar.</p>
             <div className="space-y-4">
+              <ScreentimeUpload profile={profile} saveMutation={saveMutation} />
               <PersonalitySection profile={profile} saveMutation={saveMutation} />
               <FilesSection files={profile?.context_files || []} profile={profile} saveMutation={saveMutation} />
               {SECTIONS.map(section => (

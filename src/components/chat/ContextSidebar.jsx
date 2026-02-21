@@ -492,6 +492,9 @@ export default function ContextSidebar() {
           </div>
 
           <div className="flex-1 overflow-y-auto">
+            {/* Screen Time Section */}
+            <ScreentimeUpload profile={profile} saveMutation={saveMutation} compact={true} />
+
             {/* Files Section */}
             <FilesSection files={profile?.context_files || []} profile={profile} saveMutation={saveMutation} queryClient={queryClient} />
 

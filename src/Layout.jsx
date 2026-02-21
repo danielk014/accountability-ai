@@ -12,6 +12,7 @@ const navItems = [
   { name: "Calendar", icon: CalendarDays, page: "Calendar" },
   { name: "To Do", icon: ListChecks, page: "Habits" },
   { name: "Progress", icon: BarChart3, page: "Progress" },
+  { name: "Pomodoro", icon: Timer, page: "Pomodoro" },
 ];
 
 export default function Layout({ children, currentPageName }) {
