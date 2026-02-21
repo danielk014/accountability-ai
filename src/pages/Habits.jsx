@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Pencil, Flame, Loader2, Check } from "lucide-react";
+import { Plus, Trash2, Pencil, Loader2, Check, Flag } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,8 +18,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-
-import TaskFormDialog from "../components/tasks/TaskFormDialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const categoryColors = {
   health: "bg-rose-50 text-rose-600 border-rose-200",
@@ -31,98 +38,151 @@ const categoryColors = {
   other: "bg-slate-50 text-slate-600 border-slate-200",
 };
 
+const priorityConfig = {
+  urgent: { label: "Urgent", color: "text-red-500", bg: "bg-red-50 border-red-200 text-red-600" },
+  high:   { label: "High",   color: "text-orange-500", bg: "bg-orange-50 border-orange-200 text-orange-600" },
+  medium: { label: "Medium", color: "text-yellow-500", bg: "bg-yellow-50 border-yellow-200 text-yellow-600" },
+  low:    { label: "Low",    color: "text-slate-400", bg: "bg-slate-50 border-slate-200 text-slate-500" },
+};
+
+const CATEGORIES = ["health", "work", "learning", "personal", "social", "mindfulness", "other"];
+const PRIORITIES = ["urgent", "high", "medium", "low"];
+
+function TodoFormDialog({ open, onOpenChange, onSubmit, item }) {
+  const [form, setForm] = useState({
+    name: item?.name || "",
+    description: item?.description || "",
+    priority: item?.priority || "medium",
+    category: item?.category || "personal",
+    due_date: item?.due_date || "",
+  });
+
+  React.useEffect(() => {
+    setForm({
+      name: item?.name || "",
+      description: item?.description || "",
+      priority: item?.priority || "medium",
+      category: item?.category || "personal",
+      due_date: item?.due_date || "",
+    });
+  }, [item, open]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!form.name.trim()) return;
+    onSubmit(form);
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="rounded-2xl max-w-md">
+        <DialogHeader>
+          <DialogTitle>{item ? "Edit To-Do" : "New To-Do"}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          <div>
+            <label className="text-sm font-medium text-slate-700 mb-1 block">Task name</label>
+            <Input
+              autoFocus
+              placeholder="What do you need to do?"
+              value={form.name}
+              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              className="rounded-xl"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium text-slate-700 mb-1 block">Priority</label>
+              <Select value={form.priority} onValueChange={v => setForm(f => ({ ...f, priority: v }))}>
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PRIORITIES.map(p => (
+                    <SelectItem key={p} value={p}>{priorityConfig[p].label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-700 mb-1 block">Category</label>
+              <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map(c => (
+                    <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-slate-700 mb-1 block">Due date (optional)</label>
+            <Input
+              type="date"
+              value={form.due_date}
+              onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))}
+              className="rounded-xl"
+            />
+          </div>
+          <DialogFooter className="pt-2">
+            <Button type="button" variant="outline" className="rounded-xl" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="submit" className="rounded-xl bg-indigo-600 hover:bg-indigo-700">
+              {item ? "Save" : "Add"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function Habits() {
   const [showForm, setShowForm] = useState(false);
-  const [editingTask, setEditingTask] = useState(null);
+  const [editingItem, setEditingItem] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
   const queryClient = useQueryClient();
 
-  const { data: user } = useQuery({
-    queryKey: ["me"],
-    queryFn: () => base44.auth.me(),
-  });
+  const { data: user } = useQuery({ queryKey: ["me"], queryFn: () => base44.auth.me() });
 
-  const { data: tasks = [], isLoading } = useQuery({
-    queryKey: ["tasks", user?.email],
-    queryFn: () => user?.email ? base44.entities.Task.filter({ created_by: user.email }) : [],
-  });
-
-  const { data: completions = [] } = useQuery({
-    queryKey: ["completions", user?.email],
-    queryFn: () => user?.email ? base44.entities.TaskCompletion.filter({ created_by: user.email }) : [],
+  const { data: todos = [], isLoading } = useQuery({
+    queryKey: ["todos", user?.email],
+    queryFn: () => user?.email ? base44.entities.TodoItem.filter({ created_by: user.email }) : [],
   });
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.Task.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      setShowForm(false);
-      toast.success("Task added!");
-    },
+    mutationFn: (data) => base44.entities.TodoItem.create(data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["todos"] }); toast.success("To-do added!"); },
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Task.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      setEditingTask(null);
-      setShowForm(false);
-      toast.success("Task updated!");
-    },
+    mutationFn: ({ id, data }) => base44.entities.TodoItem.update(id, data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["todos"] }); setEditingItem(null); toast.success("Updated!"); },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Task.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      setDeleteId(null);
-      toast.success("Task removed.");
-    },
-  });
-
-  const completionMutation = useMutation({
-    mutationFn: async (task) => {
-      const today = format(new Date(), "yyyy-MM-dd");
-      const existingCompletion = completions.find(c => c.task_id === task.id && c.completed_date === today);
-      
-      if (existingCompletion) {
-        await base44.entities.TaskCompletion.delete(existingCompletion.id);
-      } else {
-        await base44.entities.TaskCompletion.create({
-          task_id: task.id,
-          task_name: task.name,
-          completed_date: today,
-          completed_at: format(new Date(), "HH:mm"),
-        });
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["completions"] });
-      toast.success("Task completed!");
-    },
+    mutationFn: (id) => base44.entities.TodoItem.delete(id),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["todos"] }); setDeleteId(null); toast.success("Removed."); },
   });
 
   const handleSubmit = (data) => {
-    if (editingTask) {
-      updateMutation.mutate({ id: editingTask.id, data });
+    if (editingItem) {
+      updateMutation.mutate({ id: editingItem.id, data });
     } else {
       createMutation.mutate(data);
     }
   };
 
-  const today = format(new Date(), "yyyy-MM-dd");
-  const todayCompletions = completions.filter(c => c.completed_date === today);
-  const completedTaskIds = new Set(todayCompletions.map(c => c.task_id));
-
-  const activeTasks = tasks.filter(t => t.is_active !== false && t.frequency === "once" && !completedTaskIds.has(t.id));
-  const archivedTasks = tasks.filter(t => t.is_active === false);
+  // Sort: incomplete first by priority, then done at bottom
+  const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 };
+  const pending = todos.filter(t => !t.is_done).sort((a, b) => (priorityOrder[a.priority] ?? 2) - (priorityOrder[b.priority] ?? 2));
+  const done = todos.filter(t => t.is_done);
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
-      </div>
-    );
+    return <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-indigo-500" /></div>;
   }
 
   return (
@@ -132,100 +192,101 @@ export default function Habits() {
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">To Do List</h1>
           <p className="text-slate-500 mt-1">Your personal to-do items.</p>
         </div>
-        <Button
-          onClick={() => { setEditingTask(null); setShowForm(true); }}
-          className="rounded-xl bg-indigo-600 hover:bg-indigo-700"
-        >
-          <Plus className="w-4 h-4 mr-1" />
-          New task
+        <Button onClick={() => { setEditingItem(null); setShowForm(true); }} className="rounded-xl bg-indigo-600 hover:bg-indigo-700">
+          <Plus className="w-4 h-4 mr-1" /> New task
         </Button>
       </div>
 
       <div className="space-y-2">
         <AnimatePresence>
-          {activeTasks.map(task => (
-            <motion.div
-              key={task.id}
-              layout
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="flex items-center gap-4 p-4 bg-white border border-slate-200 rounded-2xl hover:shadow-md transition-all group"
-            >
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm text-slate-800">{task.name}</p>
-                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                  <Badge variant="outline" className={cn("text-xs", categoryColors[task.category])}>
-                    {task.category}
-                  </Badge>
-                  <span className="text-xs text-slate-400 capitalize">{task.frequency}</span>
-                  {task.scheduled_time && (
-                    <span className="text-xs text-slate-400">{task.scheduled_time}</span>
-                  )}
-                  {task.streak > 0 && (
-                    <span className="flex items-center gap-1 text-xs text-amber-500 font-medium">
-                      <Flame className="w-3 h-3" />{task.streak}
-                    </span>
-                  )}
+          {pending.map(item => {
+            const pc = priorityConfig[item.priority] || priorityConfig.medium;
+            return (
+              <motion.div
+                key={item.id}
+                layout
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="flex items-center gap-4 p-4 bg-white border border-slate-200 rounded-2xl hover:shadow-md transition-all group"
+              >
+                <button
+                  onClick={() => updateMutation.mutate({ id: item.id, data: { is_done: true } })}
+                  className="w-5 h-5 rounded-full border-2 border-slate-300 hover:border-indigo-500 flex items-center justify-center transition-colors flex-shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm text-slate-800">{item.name}</p>
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    <Badge variant="outline" className={cn("text-xs", pc.bg)}>
+                      <Flag className="w-2.5 h-2.5 mr-1" />{pc.label}
+                    </Badge>
+                    <Badge variant="outline" className={cn("text-xs", categoryColors[item.category])}>
+                      {item.category}
+                    </Badge>
+                    {item.due_date && (
+                      <span className="text-xs text-slate-400">Due {item.due_date}</span>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-1">
-               <Button
-                 variant="ghost"
-                 size="icon"
-                 className="h-8 w-8 text-green-600 hover:bg-green-50"
-                 onClick={() => completionMutation.mutate(task)}
-               >
-                 <Check className="w-4 h-4" />
-               </Button>
-               <Button
-                 variant="ghost"
-                 size="icon"
-                 className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                 onClick={() => { setEditingTask(task); setShowForm(true); }}
-               >
-                 <Pencil className="w-4 h-4 text-slate-400" />
-               </Button>
-               <Button
-                 variant="ghost"
-                 size="icon"
-                 className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                 onClick={() => setDeleteId(task.id)}
-               >
-                 <Trash2 className="w-4 h-4 text-red-400" />
-               </Button>
-              </div>
-            </motion.div>
-          ))}
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingItem(item); setShowForm(true); }}>
+                    <Pencil className="w-4 h-4 text-slate-400" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteId(item.id)}>
+                    <Trash2 className="w-4 h-4 text-red-400" />
+                  </Button>
+                </div>
+              </motion.div>
+            );
+          })}
         </AnimatePresence>
 
-        {activeTasks.length === 0 && (
+        {pending.length === 0 && (
           <div className="text-center py-16 text-slate-400">
-            <p className="text-lg font-medium">No tasks yet</p>
-            <p className="text-sm mt-1">Add your first to-do item to get started!</p>
+            <p className="text-lg font-medium">All clear!</p>
+            <p className="text-sm mt-1">Add your first to-do item to get started.</p>
+          </div>
+        )}
+
+        {done.length > 0 && (
+          <div className="mt-6">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Completed ({done.length})</p>
+            <div className="space-y-2">
+              {done.map(item => (
+                <div key={item.id} className="flex items-center gap-4 p-4 bg-slate-50 border border-slate-100 rounded-2xl opacity-50 group">
+                  <button
+                    onClick={() => updateMutation.mutate({ id: item.id, data: { is_done: false } })}
+                    className="w-5 h-5 rounded-full border-2 border-emerald-400 bg-emerald-400 flex items-center justify-center flex-shrink-0"
+                  >
+                    <Check className="w-3 h-3 text-white" />
+                  </button>
+                  <p className="flex-1 text-sm text-slate-500 line-through">{item.name}</p>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setDeleteId(item.id)}>
+                    <Trash2 className="w-4 h-4 text-red-400" />
+                  </Button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
 
-      <TaskFormDialog
+      <TodoFormDialog
         open={showForm}
         onOpenChange={setShowForm}
         onSubmit={handleSubmit}
-        task={editingTask}
+        item={editingItem}
       />
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this task?</AlertDialogTitle>
-            <AlertDialogDescription>This will permanently remove this task and cannot be undone.</AlertDialogDescription>
+            <AlertDialogTitle>Delete this item?</AlertDialogTitle>
+            <AlertDialogDescription>This will permanently remove this to-do item.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="rounded-xl bg-red-600 hover:bg-red-700"
-              onClick={() => deleteMutation.mutate(deleteId)}
-            >
+            <AlertDialogAction className="rounded-xl bg-red-600 hover:bg-red-700" onClick={() => deleteMutation.mutate(deleteId)}>
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
