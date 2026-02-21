@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Pencil, Flame, Loader2 } from "lucide-react";
+import { Plus, Trash2, Pencil, Flame, Loader2, Check } from "lucide-react";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
@@ -46,6 +47,11 @@ export default function Habits() {
     queryFn: () => user?.email ? base44.entities.Task.filter({ created_by: user.email }) : [],
   });
 
+  const { data: completions = [] } = useQuery({
+    queryKey: ["completions", user?.email],
+    queryFn: () => user?.email ? base44.entities.TaskCompletion.filter({ created_by: user.email }) : [],
+  });
+
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.Task.create(data),
     onSuccess: () => {
@@ -74,6 +80,28 @@ export default function Habits() {
     },
   });
 
+  const completionMutation = useMutation({
+    mutationFn: async (task) => {
+      const today = format(new Date(), "yyyy-MM-dd");
+      const existingCompletion = completions.find(c => c.task_id === task.id && c.completed_date === today);
+      
+      if (existingCompletion) {
+        await base44.entities.TaskCompletion.delete(existingCompletion.id);
+      } else {
+        await base44.entities.TaskCompletion.create({
+          task_id: task.id,
+          task_name: task.name,
+          completed_date: today,
+          completed_at: format(new Date(), "HH:mm"),
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["completions"] });
+      toast.success("Task completed!");
+    },
+  });
+
   const handleSubmit = (data) => {
     if (editingTask) {
       updateMutation.mutate({ id: editingTask.id, data });
@@ -82,7 +110,11 @@ export default function Habits() {
     }
   };
 
-  const activeTasks = tasks.filter(t => t.is_active !== false && t.frequency === "once");
+  const today = format(new Date(), "yyyy-MM-dd");
+  const todayCompletions = completions.filter(c => c.completed_date === today);
+  const completedTaskIds = new Set(todayCompletions.map(c => c.task_id));
+
+  const activeTasks = tasks.filter(t => t.is_active !== false && t.frequency === "once" && !completedTaskIds.has(t.id));
   const archivedTasks = tasks.filter(t => t.is_active === false);
 
   if (isLoading) {
@@ -137,23 +169,31 @@ export default function Habits() {
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => { setEditingTask(task); setShowForm(true); }}
-                >
-                  <Pencil className="w-4 h-4 text-slate-400" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => setDeleteId(task.id)}
-                >
-                  <Trash2 className="w-4 h-4 text-red-400" />
-                </Button>
+              <div className="flex items-center gap-1">
+               <Button
+                 variant="ghost"
+                 size="icon"
+                 className="h-8 w-8 text-green-600 hover:bg-green-50"
+                 onClick={() => completionMutation.mutate(task)}
+               >
+                 <Check className="w-4 h-4" />
+               </Button>
+               <Button
+                 variant="ghost"
+                 size="icon"
+                 className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                 onClick={() => { setEditingTask(task); setShowForm(true); }}
+               >
+                 <Pencil className="w-4 h-4 text-slate-400" />
+               </Button>
+               <Button
+                 variant="ghost"
+                 size="icon"
+                 className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                 onClick={() => setDeleteId(task.id)}
+               >
+                 <Trash2 className="w-4 h-4 text-red-400" />
+               </Button>
               </div>
             </motion.div>
           ))}
