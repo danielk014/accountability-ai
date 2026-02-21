@@ -394,7 +394,21 @@ export default function Settings() {
 
   const getItems = (key) => profile?.[key] || [];
 
-  const handleAdd = (key, value) => {
+  const handleAdd = async (key, value) => {
+    // If adding a person with a birthday, create a birthday task
+    if (key === "context_people") {
+      try {
+        const person = JSON.parse(value);
+        if (person.birthday) {
+          await base44.functions.invoke('addBirthdayTask', {
+            personName: person.name,
+            birthday: person.birthday,
+          });
+        }
+      } catch (e) {
+        // Silently handle JSON parse errors
+      }
+    }
     saveMutation.mutate({ [key]: [...getItems(key), value] });
     toast.success("Saved!");
   };
