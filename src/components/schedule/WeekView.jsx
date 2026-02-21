@@ -61,44 +61,77 @@ function snap(val) {
 function TimedTaskBlock({ task, dayStr, localData, completed, color, onToggle, onRemove, onMoveEnd, allTasks, days }) {
    const timeStr = localData?.time || task.scheduled_time;
    const displayTop = timeToTop(timeStr);
+   const durationMin = localData?.durationMin ?? 60;
+   const displayHeight = minutesToTop(durationMin);
    const dragStateRef = useRef(null);
    const [liveTop, setLiveTop] = useState(null);
+   const [liveHeight, setLiveHeight] = useState(null);
    const [liveDayIdx, setLiveDayIdx] = useState(null);
    const currentTop = liveTop !== null ? liveTop : displayTop;
+   const currentHeight = liveHeight !== null ? liveHeight : displayHeight;
 
-   const onPointerDown = useCallback((e) => {
-     if (e.button !== 0) return; // only left click
+   const onPointerDown = useCallback((e, type = "move") => {
+     if (e.button !== 0) return;
      e.preventDefault();
      e.stopPropagation();
      const dayIdx = days.findIndex(d => format(d, "yyyy-MM-dd") === dayStr);
-     dragStateRef.current = { startY: e.clientY, startX: e.clientX, startTop: displayTop, dayIdx, startDayIdx: dayIdx };
+     dragStateRef.current = { 
+       type, 
+       startY: e.clientY, 
+       startX: e.clientX, 
+       startTop: displayTop, 
+       startHeight: displayHeight,
+       dayIdx, 
+       startDayIdx: dayIdx 
+     };
      e.currentTarget.setPointerCapture(e.pointerId);
-   }, [displayTop, dayStr, days]);
+   }, [displayTop, displayHeight, dayStr, days]);
 
    const onPointerMove = useCallback((e) => {
      if (!dragStateRef.current) return;
-     const { startY, startX, startTop, dayIdx } = dragStateRef.current;
+     const { type, startY, startX, startTop, startHeight, dayIdx } = dragStateRef.current;
      const dy = e.clientY - startY;
      const dx = e.clientX - startX;
-     const newTop = Math.max(0, startTop + dy);
-     // rough: if dragged >100px left/right, move to adjacent day
+     
+     // Determine which day we're over based on x position
      let newDayIdx = dayIdx;
-     if (dx < -100 && dayIdx > 0) newDayIdx--;
-     if (dx > 100 && dayIdx < days.length - 1) newDayIdx++;
-     setLiveTop(snap(newTop));
-     setLiveDayIdx(newDayIdx);
+     if (dx < -80 && dayIdx > 0) newDayIdx--;
+     if (dx > 80 && dayIdx < days.length - 1) newDayIdx++;
+
+     if (type === "move") {
+       const newTop = Math.max(0, startTop + dy);
+       setLiveTop(snap(newTop));
+       setLiveHeight(startHeight);
+       setLiveDayIdx(newDayIdx);
+     } else if (type === "resize-bottom") {
+       const rawHeight = startHeight + dy;
+       const snappedHeight = snap(Math.max(MIN_HEIGHT, rawHeight));
+       setLiveTop(startTop);
+       setLiveHeight(snappedHeight);
+       setLiveDayIdx(dayIdx);
+     } else if (type === "resize-top") {
+       const rawTop = startTop + dy;
+       const snappedTop = snap(rawTop);
+       const newHeight = startHeight - (snappedTop - startTop);
+       setLiveTop(Math.max(0, snappedTop));
+       setLiveHeight(Math.max(MIN_HEIGHT, newHeight));
+       setLiveDayIdx(dayIdx);
+     }
    }, [days]);
 
    const onPointerUp = useCallback((e) => {
      if (!dragStateRef.current) return;
+     const { type } = dragStateRef.current;
      const finalTop = liveTop !== null ? liveTop : displayTop;
+     const finalHeight = liveHeight !== null ? liveHeight : displayHeight;
      const finalDayIdx = liveDayIdx !== null ? liveDayIdx : dragStateRef.current.dayIdx;
      dragStateRef.current = null;
      setLiveTop(null);
+     setLiveHeight(null);
      setLiveDayIdx(null);
      const finalDayStr = format(days[finalDayIdx], "yyyy-MM-dd");
-     onMoveEnd(task.id, finalDayStr, Math.max(0, finalTop));
-   }, [liveTop, liveDayIdx, displayTop, task.id, days, onMoveEnd]);
+     onMoveEnd(task.id, finalDayStr, Math.max(0, finalTop), type === "move" ? undefined : finalHeight);
+   }, [liveTop, liveHeight, liveDayIdx, displayTop, displayHeight, task.id, days, onMoveEnd]);
 
    return (
      <div
