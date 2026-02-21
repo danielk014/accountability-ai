@@ -100,6 +100,13 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
   const [localTimes, setLocalTimes] = useState({});
   const pendingSave = useRef({});
 
+  // When tasks update from DB, merge in any pending local overrides so card doesn't snap back
+  useEffect(() => {
+    if (Object.keys(pendingSave.current).length > 0) {
+      setLocalTimes(prev => ({ ...prev, ...pendingSave.current }));
+    }
+  }, [tasks]);
+
   const dayTasks = tasks.filter((t) => taskAppliesOnDate(t, date));
   const completedIds = new Set(
     completions.filter((c) => c.completed_date === dateStr).map((c) => c.task_id)
