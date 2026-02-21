@@ -135,17 +135,25 @@ function TimedTaskBlock({ task, dayStr, localData, completed, color, onToggle, o
 
    return (
      <div
-       style={{ top: currentTop + 1, height: SLOT_HEIGHT - 3, zIndex: 5, position: "absolute", left: 2, right: 2 }}
+       style={{ top: currentTop + 1, height: Math.max(MIN_HEIGHT, currentHeight - 3), zIndex: 5, position: "absolute", left: 2, right: 2 }}
        className={`rounded border-l-2 shadow-sm select-none overflow-visible ${completed ? "opacity-40 bg-slate-50 border-l-slate-200" : color}`}
        onPointerMove={onPointerMove}
        onPointerUp={onPointerUp}
        onPointerCancel={onPointerUp}
      >
+       {/* Top resize handle */}
+       <div
+         className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize flex items-center justify-center group z-20"
+         onPointerDown={(e) => onPointerDown(e, "resize-top")}
+       >
+         <div className="w-6 h-0.5 rounded-full bg-current opacity-20 group-hover:opacity-50 transition-opacity" />
+       </div>
+
        <div
          className="flex items-center gap-1 px-1.5 py-0.5 h-full cursor-grab active:cursor-grabbing group"
          onPointerDown={(e) => {
            if (e.target.closest("button")) return;
-           onPointerDown(e);
+           onPointerDown(e, "move");
          }}
        >
          <button type="button" className="flex-shrink-0 z-20" onClick={(e) => { e.stopPropagation(); onToggle(); }}>
@@ -161,6 +169,14 @@ function TimedTaskBlock({ task, dayStr, localData, completed, color, onToggle, o
          >
            <X className="w-2.5 h-2.5" />
          </button>
+       </div>
+
+       {/* Bottom resize handle */}
+       <div
+         className="absolute bottom-0 left-0 right-0 h-1 cursor-ns-resize flex items-center justify-center group z-20"
+         onPointerDown={(e) => onPointerDown(e, "resize-bottom")}
+       >
+         <div className="w-6 h-0.5 rounded-full bg-current opacity-20 group-hover:opacity-50 transition-opacity" />
        </div>
      </div>
    );
