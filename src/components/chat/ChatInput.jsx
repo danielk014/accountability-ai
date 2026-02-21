@@ -134,7 +134,7 @@ Be direct. Be intense. Use their actual numbers. Don't be generic.`;
               handleSend();
             }
           }}
-          placeholder="Tell me about your goals, tasks, or ask for a check-in..."
+          placeholder="Tell me about your goals..."
           rows={1}
           className={cn(
             "flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm",
