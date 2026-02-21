@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths } from "date-fns";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
-const DAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAYS_SHORT = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 export default function CalendarPicker({ selectedDate, onSelectDate }) {
   const [open, setOpen] = useState(false);
