@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, Mail } from "lucide-react";
+import { ArrowLeft, Loader2, Mail, CheckCircle2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "../utils";
 
@@ -31,6 +31,24 @@ export default function Settings() {
   const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
   const [isConnectingGmail, setIsConnectingGmail] = useState(false);
+
+  // Handle OAuth callback (code in URL)
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    if (!code) return;
+
+    // Clean the URL
+    window.history.replaceState({}, document.title, window.location.pathname);
+
+    const redirectUri = `${window.location.origin}${window.location.pathname}`;
+    base44.functions.invoke('googleOAuthExchange', { code, redirect_uri: redirectUri })
+      .then(() => {
+        toast.success("Google Calendar connected!");
+        queryClient.invalidateQueries({ queryKey: ["profile"] });
+      })
+      .catch(() => toast.error("Failed to connect Google Calendar"));
+  }, []);
 
   const { data: user } = useQuery({
     queryKey: ["me"],
@@ -109,16 +127,27 @@ export default function Settings() {
   const handleConnectGmail = async () => {
     setIsConnectingGmail(true);
     try {
-      const authUrl = base44.connectors.getAuthorizationUrl('googlecalendar', {
-        scopes: ['https://www.googleapis.com/auth/calendar.readonly', 'email'],
-        redirectUrl: window.location.href,
-      });
-      window.location.href = authUrl;
+      const redirectUri = `${window.location.origin}${window.location.pathname}`;
+      const response = await base44.functions.invoke('googleOAuthStart', { redirect_uri: redirectUri });
+      window.location.href = response.data.url;
     } catch (error) {
-      toast.error("Failed to connect Gmail");
+      toast.error("Failed to start Google authorization");
       setIsConnectingGmail(false);
     }
   };
+
+  const handleDisconnectGmail = async () => {
+    if (!profile) return;
+    await base44.entities.UserProfile.update(profile.id, {
+      google_access_token: null,
+      google_refresh_token: null,
+      google_token_expiry: null,
+    });
+    queryClient.invalidateQueries({ queryKey: ["profile"] });
+    toast.success("Google Calendar disconnected");
+  };
+
+  const isGmailConnected = !!profile?.google_access_token;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -214,24 +243,41 @@ export default function Settings() {
               <div className="flex items-center gap-3">
                 <Mail className="w-5 h-5 text-red-500" />
                 <div>
-                  <h2 className="text-lg font-bold text-slate-900">Gmail Calendar Sync</h2>
-                  <p className="text-sm text-slate-600 mt-1">Connect your Gmail account to sync your calendar</p>
+                  <h2 className="text-lg font-bold text-slate-900">Google Calendar Sync</h2>
+                  <p className="text-sm text-slate-600 mt-1">
+                    {isGmailConnected ? "Your Google Calendar is connected." : "Connect your Google account to sync your calendar"}
+                  </p>
+                  {isGmailConnected && (
+                    <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium mt-1">
+                      <CheckCircle2 className="w-3 h-3" /> Connected
+                    </span>
+                  )}
                 </div>
               </div>
-              <Button
-                onClick={handleConnectGmail}
-                disabled={isConnectingGmail}
-                className="rounded-xl bg-red-500 hover:bg-red-600 text-white"
-              >
-                {isConnectingGmail ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Connecting...
-                  </>
-                ) : (
-                  "Connect Gmail"
-                )}
-              </Button>
+              {isGmailConnected ? (
+                <Button
+                  onClick={handleDisconnectGmail}
+                  variant="outline"
+                  className="rounded-xl border-red-200 text-red-600 hover:bg-red-50"
+                >
+                  Disconnect
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleConnectGmail}
+                  disabled={isConnectingGmail}
+                  className="rounded-xl bg-red-500 hover:bg-red-600 text-white"
+                >
+                  {isConnectingGmail ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    "Connect Google"
+                  )}
+                </Button>
+              )}
             </div>
           </div>
 
