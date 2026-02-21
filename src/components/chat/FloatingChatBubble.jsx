@@ -33,15 +33,26 @@ export default function FloatingChatBubble({ currentPageName }) {
   useEffect(() => {
     async function init() {
       const user = await base44.auth.me();
-      const conversations = await base44.agents.listConversations({
-        agent_name: "accountability_partner",
-      });
+      const convKey = `conv_id_${user.email}`;
+      const savedConvId = localStorage.getItem(convKey);
 
-      // Filter to only get the current user's conversation
+      if (savedConvId) {
+        try {
+          const conv = await base44.agents.getConversation(savedConvId);
+          setConversationId(conv.id);
+          setMessages(conv.messages || []);
+          return;
+        } catch {
+          localStorage.removeItem(convKey);
+        }
+      }
+
+      const conversations = await base44.agents.listConversations({ agent_name: "accountability_partner" });
       const userConversation = conversations.find(c => c.created_by === user.email);
 
       if (userConversation) {
         const conv = await base44.agents.getConversation(userConversation.id);
+        localStorage.setItem(convKey, conv.id);
         setConversationId(conv.id);
         setMessages(conv.messages || []);
       } else {
@@ -49,6 +60,7 @@ export default function FloatingChatBubble({ currentPageName }) {
           agent_name: "accountability_partner",
           metadata: { name: "My Accountability Chat", user_email: user.email },
         });
+        localStorage.setItem(convKey, conv.id);
         setConversationId(conv.id);
         setMessages([]);
       }
