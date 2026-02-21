@@ -58,35 +58,47 @@ function snap(val) {
    return Math.round(val / SNAP) * SNAP;
  }
 
-function TimedTaskBlock({ task, dayStr, localData, completed, color, onToggle, onRemove, onMoveEnd }) {
+function TimedTaskBlock({ task, dayStr, localData, completed, color, onToggle, onRemove, onMoveEnd, allTasks, days }) {
    const timeStr = localData?.time || task.scheduled_time;
    const displayTop = timeToTop(timeStr);
    const dragStateRef = useRef(null);
    const [liveTop, setLiveTop] = useState(null);
+   const [liveDayIdx, setLiveDayIdx] = useState(null);
    const currentTop = liveTop !== null ? liveTop : displayTop;
 
    const onPointerDown = useCallback((e) => {
+     if (e.button !== 0) return; // only left click
      e.preventDefault();
      e.stopPropagation();
-     dragStateRef.current = { startY: e.clientY, startTop: displayTop };
+     const dayIdx = days.findIndex(d => format(d, "yyyy-MM-dd") === dayStr);
+     dragStateRef.current = { startY: e.clientY, startX: e.clientX, startTop: displayTop, dayIdx, startDayIdx: dayIdx };
      e.currentTarget.setPointerCapture(e.pointerId);
-   }, [displayTop]);
+   }, [displayTop, dayStr, days]);
 
    const onPointerMove = useCallback((e) => {
      if (!dragStateRef.current) return;
-     const { startY, startTop } = dragStateRef.current;
+     const { startY, startX, startTop, dayIdx } = dragStateRef.current;
      const dy = e.clientY - startY;
+     const dx = e.clientX - startX;
      const newTop = Math.max(0, startTop + dy);
+     // rough: if dragged >100px left/right, move to adjacent day
+     let newDayIdx = dayIdx;
+     if (dx < -100 && dayIdx > 0) newDayIdx--;
+     if (dx > 100 && dayIdx < days.length - 1) newDayIdx++;
      setLiveTop(snap(newTop));
-   }, []);
+     setLiveDayIdx(newDayIdx);
+   }, [days]);
 
    const onPointerUp = useCallback((e) => {
      if (!dragStateRef.current) return;
      const finalTop = liveTop !== null ? liveTop : displayTop;
+     const finalDayIdx = liveDayIdx !== null ? liveDayIdx : dragStateRef.current.dayIdx;
      dragStateRef.current = null;
      setLiveTop(null);
-     onMoveEnd(task.id, dayStr, Math.max(0, finalTop));
-   }, [liveTop, displayTop, task.id, dayStr, onMoveEnd]);
+     setLiveDayIdx(null);
+     const finalDayStr = format(days[finalDayIdx], "yyyy-MM-dd");
+     onMoveEnd(task.id, finalDayStr, Math.max(0, finalTop));
+   }, [liveTop, liveDayIdx, displayTop, task.id, days, onMoveEnd]);
 
    return (
      <div
@@ -100,15 +112,16 @@ function TimedTaskBlock({ task, dayStr, localData, completed, color, onToggle, o
          className="flex items-center gap-1 px-1.5 py-0.5 h-full cursor-grab active:cursor-grabbing group"
          onPointerDown={onPointerDown}
        >
-         <button className="flex-shrink-0 z-20" onClick={(e) => { e.stopPropagation(); onToggle(); }}>
+         <button type="button" className="flex-shrink-0 z-20 pointer-events-auto" onClick={(e) => { e.stopPropagation(); e.preventDefault(); onToggle(); }}>
            {completed
              ? <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500 flex-shrink-0" />
              : <Circle className="w-2.5 h-2.5 flex-shrink-0 opacity-50" />}
          </button>
-         <span className={`text-xs font-semibold truncate flex-1 ${completed ? "line-through" : ""}`}>{task.name}</span>
+         <span className={`text-xs font-semibold truncate flex-1 pointer-events-none ${completed ? "line-through" : ""}`}>{task.name}</span>
          <button
-           className="flex-shrink-0 p-0.5 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity z-20"
-           onClick={(e) => { e.stopPropagation(); onRemove(); }}
+           type="button"
+           className="flex-shrink-0 p-0.5 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity z-20 pointer-events-auto"
+           onClick={(e) => { e.stopPropagation(); e.preventDefault(); onRemove(); }}
          >
            <X className="w-2.5 h-2.5" />
          </button>
