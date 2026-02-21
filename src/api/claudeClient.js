@@ -368,7 +368,7 @@ export async function sendOneOffPrompt(prompt) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-5',
+      model: 'claude-4-5-sonnet-20250514',
       max_tokens: 2048,
       messages: [{ role: 'user', content: prompt }],
     }),
@@ -394,7 +394,7 @@ async function _agenticLoop(history, systemPrompt) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
+        model: 'claude-4-5-sonnet-20250514',
         max_tokens: hasFiles ? 2048 : 1024,
         system: systemPrompt,
         tools: TOOLS,

@@ -301,7 +301,7 @@ function SalaryUpload({ onParsed }) {
           ...(isPdf ? { "anthropic-beta": "pdfs-2024-09-25" } : {}),
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "claude-4-5-sonnet-20250514",
           max_tokens: 64,
           messages: [{
             role: "user",
