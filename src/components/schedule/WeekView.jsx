@@ -243,10 +243,6 @@ export default function WeekView({ date, tasks, completions, onToggle, onDropTas
             const time = localData[t.id]?.time !== undefined ? localData[t.id].time : t.scheduled_time;
             return isValidTime(time);
           });
-          const untimedTasks = dayTasks.filter((t) => {
-            const time = localData[t.id]?.time !== undefined ? localData[t.id].time : t.scheduled_time;
-            return !isValidTime(time);
-          });
 
           const isDragTarget = dragOver?.dayStr === dateStr;
           const nowTop = isToday && nowHour >= 6 && nowHour < 24
