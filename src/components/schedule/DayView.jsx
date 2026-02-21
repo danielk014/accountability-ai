@@ -112,9 +112,15 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
     completions.filter((c) => c.completed_date === dateStr).map((c) => c.task_id)
   );
 
-  // All tasks with a time (use localTimes override if present)
-  const timedTasks = dayTasks.filter((t) => t.scheduled_time || localTimes[t.id]);
-  const untimedTasks = dayTasks.filter((t) => !t.scheduled_time && !localTimes[t.id]);
+  // Only tasks with an actual time value go on the grid
+  const timedTasks = dayTasks.filter((t) => {
+    const time = localTimes[t.id] || t.scheduled_time;
+    return time && time.trim() !== "";
+  });
+  const untimedTasks = dayTasks.filter((t) => {
+    const time = localTimes[t.id] || t.scheduled_time;
+    return !time || time.trim() === "";
+  });
 
   const getGridTop = useCallback((clientY) => {
     const rect = gridRef.current?.getBoundingClientRect();
