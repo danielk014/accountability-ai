@@ -190,20 +190,7 @@ export default function Onboarding() {
                   </Select>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Coaching Style</Label>
-                  <Select value={formData.motivation_style} onValueChange={(v) => setFormData({ ...formData, motivation_style: v })}>
-                    <SelectTrigger className="rounded-xl h-11">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="gentle">Gentle & Encouraging</SelectItem>
-                      <SelectItem value="direct">Direct & Straightforward</SelectItem>
-                      <SelectItem value="tough_love">Tough Love & Intense</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-slate-500">How the AI should coach you</p>
-                </div>
+
               </div>
             </div>
           )}

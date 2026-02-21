@@ -453,18 +453,6 @@ export default function Settings() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Coaching Style</Label>
-                <Select value={motivationStyle} onValueChange={setMotivationStyle}>
-                  <SelectTrigger className="rounded-xl h-11"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="gentle">Gentle & Encouraging</SelectItem>
-                    <SelectItem value="direct">Direct & Straightforward</SelectItem>
-                    <SelectItem value="tough_love">Tough Love & Intense</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-slate-500">How the AI should coach you</p>
-              </div>
               <button onClick={handleSavePreferences} disabled={isSaving}
                 className="w-full py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition flex items-center justify-center gap-2">
                 {isSaving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving...</> : "Save Preferences"}
