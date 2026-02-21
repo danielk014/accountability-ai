@@ -133,23 +133,16 @@ export default function Calendar() {
     setIsSyncingCalendar(true);
     try {
       const response = await base44.functions.invoke("getCalendarEvents");
-      if (response.status === 403) {
-        // User needs to authorize
-        const authUrl = base44.connectors.getAuthorizationUrl('googlecalendar', {
-          scopes: ['https://www.googleapis.com/auth/calendar.readonly', 'email'],
-          redirectUrl: window.location.href,
-        });
-        window.location.href = authUrl;
+      if (response.data?.error && response.data?.error.includes('not connected')) {
+        toast.error("Connect your Google Calendar in Settings first");
+        window.location.href = createPageUrl("Settings");
       } else {
-        toast.success("Calendar synced!");
+        toast.success(`Synced ${response.data?.count || 0} events!`);
       }
     } catch (error) {
       if (error.response?.status === 403) {
-        const authUrl = base44.connectors.getAuthorizationUrl('googlecalendar', {
-          scopes: ['https://www.googleapis.com/auth/calendar.readonly', 'email'],
-          redirectUrl: window.location.href,
-        });
-        window.location.href = authUrl;
+        toast.error("Connect your Google Calendar in Settings first");
+        window.location.href = createPageUrl("Settings");
       } else {
         toast.error("Failed to sync calendar");
       }
