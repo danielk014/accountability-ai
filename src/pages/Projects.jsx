@@ -774,7 +774,7 @@ export default function Projects() {
       });
     }
     return result;
-  }, [projects, typeFilter, statusFilter, sortBy, tasksByProject]);
+  }, [projects, statusFilter, sortBy, tasksByProject]);
 
   const createProjectMutation = useMutation({
     mutationFn: (data) => base44.entities.Project.create(data),
