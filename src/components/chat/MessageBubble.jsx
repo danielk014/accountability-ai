@@ -85,8 +85,8 @@ export default function MessageBubble({ message }) {
   return (
     <div className={cn("flex gap-3", isUser ? "justify-end" : "justify-start")}>
       {!isUser && (
-        <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center mt-0.5 flex-shrink-0">
-          <Zap className="h-4 w-4 text-white" />
+        <div className="h-8 w-8 rounded-xl bg-[#1e2228] flex items-center justify-center mt-0.5 flex-shrink-0 overflow-hidden">
+          <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/699863bb9965c7b81ed00428/8af80c917_c05151408_logo.png" alt="AI" className="w-7 h-7 object-contain" />
         </div>
       )}
       <div className={cn("max-w-[85%]", isUser && "flex flex-col items-end")}>
