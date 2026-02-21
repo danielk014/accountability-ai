@@ -58,7 +58,7 @@ function snap(val) {
    return Math.round(val / SNAP) * SNAP;
  }
 
-function TimedTaskBlock({ task, dayStr, localData, completed, color, onToggle, onRemove, onMoveEnd, onDayChange, allTasks, days }) {
+function TimedTaskBlock({ task, dayStr, localData, completed, color, onToggle, onRemove, onMoveEnd, onDayChange, allTasks, days, gridRefs }) {
    const timeStr = localData?.time || task.scheduled_time;
    const displayTop = timeToTop(timeStr);
    const durationMin = localData?.durationMin ?? 60;
@@ -133,7 +133,7 @@ function TimedTaskBlock({ task, dayStr, localData, completed, color, onToggle, o
        setLiveHeight(Math.max(MIN_HEIGHT, newHeight));
        setLiveDayIdx(newDayIdx);
      }
-   }, [days, task.id, onDayChange]);
+   }, [days, task.id, onDayChange, gridRefs]);
 
    const onPointerUp = useCallback((e) => {
      if (!dragStateRef.current) return;
@@ -365,6 +365,7 @@ export default function WeekView({ date, tasks, completions, onToggle, onDropTas
                   onMoveEnd={handleMoveEnd}
                   onDayChange={handleDayChange}
                   days={days}
+                  gridRefs={gridRefs}
                 />
               ))}
 
