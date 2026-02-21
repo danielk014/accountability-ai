@@ -77,17 +77,32 @@ export default function WeekView({ date, tasks, completions, onToggle, onDropTas
 
   const handleDrop = (e, day) => {
     e.preventDefault();
+    dragState.current = null;
     const dayStr = format(day, "yyyy-MM-dd");
-    const timedId = e.dataTransfer.getData("timedTaskId");
     const sidebarId = e.dataTransfer.getData("taskId");
-    const id = timedId || sidebarId;
-    if (!id) return;
-    const top = getTop(dayStr, e.clientY);
-    const newTime = topToTime(Math.max(0, top));
-    setLocalTimes(prev => ({ ...prev, [id]: newTime }));
-    onDropTask?.(id, newTime, dayStr);
+    if (sidebarId) {
+      const top = getTop(dayStr, e.clientY);
+      const newTime = topToTime(Math.max(0, top));
+      setLocalData(prev => ({ ...prev, [sidebarId]: { time: newTime } }));
+      onDropTask?.(sidebarId, newTime, dayStr);
+    }
     setDragOver(null);
   };
+
+  const handleMoveEnd = useCallback((taskId, dayStr, finalTop) => {
+    const newTime = topToTime(finalTop);
+    setLocalData(prev => ({ ...prev, [taskId]: { ...prev[taskId], time: newTime } }));
+    onDropTask?.(taskId, newTime, dayStr);
+  }, [onDropTask]);
+
+  const handleRemoveTask = useCallback((task) => {
+    setLocalData(prev => {
+      const updated = { ...prev };
+      delete updated[task.id];
+      return updated;
+    });
+    onRemoveTask?.(task);
+  }, [onRemoveTask]);
 
   const handleDragOver = (e, day) => {
     e.preventDefault();
