@@ -110,10 +110,17 @@ export default function Calendar() {
     return false;
   };
 
-  // Sidebar shows only untimed tasks that apply today (so they can be dragged to a time slot)
-  const sidebarTasks = activeTasks.filter(
-    (t) => !t.scheduled_time?.trim() && taskAppliesOnDate(t, currentDate)
-  );
+  // Sidebar shows untimed tasks that apply (changes based on view)
+   const sidebarTasks = (() => {
+     if (view === "day") {
+       return activeTasks.filter(
+         (t) => !t.scheduled_time?.trim() && taskAppliesOnDate(t, currentDate)
+       );
+     } else {
+       // Week view: show all untimed tasks
+       return activeTasks.filter((t) => !t.scheduled_time?.trim());
+     }
+   })();
 
   const navigate = (dir) => {
     const d = new Date(currentDate);
