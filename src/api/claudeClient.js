@@ -304,31 +304,52 @@ async function executeTool(name, input) {
 async function buildSystemPrompt() {
   try {
     const user = await base44.auth.me();
-    const profiles = await base44.entities.UserProfile.filter({ created_by: user.email });
+    const [profiles, projects, allProjectTasks] = await Promise.all([
+      base44.entities.UserProfile.filter({ created_by: user.email }),
+      base44.entities.Project.filter({ created_by: user.email }, "-created_at"),
+      base44.entities.ProjectTask.filter({ created_by: user.email }),
+    ]);
     const profile = profiles[0];
 
-    if (!profile) return BASE_SYSTEM;
-
     const lines = [];
-    if (profile.context_about?.length)   lines.push(`## About Me\n${profile.context_about.join('\n')}`);
-    if (profile.context_work?.length)    lines.push(`## Work & Schedule\n${profile.context_work.join('\n')}`);
-    if (profile.context_goals?.length)   lines.push(`## Goals & Plans\n${profile.context_goals.join('\n')}`);
-    if (profile.context_notes?.length)   lines.push(`## Extra Context\n${profile.context_notes.join('\n')}`);
-    if (profile.context_people?.length) {
-      const people = profile.context_people.map(p => {
-        try { return JSON.parse(p); } catch { return { name: p }; }
-      });
-      const text = people.map(p => {
-        const parts = [`- ${p.name}`];
-        if (p.relationship) parts.push(`(${p.relationship})`);
-        if (p.birthday)     parts.push(`birthday: ${p.birthday}`);
-        if (p.interests)    parts.push(`interests: ${p.interests}`);
-        if (p.notes)        parts.push(`notes: ${p.notes}`);
-        return parts.join(', ');
-      }).join('\n');
-      lines.push(`## People in My Life\n${text}`);
+
+    if (profile) {
+      if (profile.context_about?.length)   lines.push(`## About Me\n${profile.context_about.join('\n')}`);
+      if (profile.context_work?.length)    lines.push(`## Work & Schedule\n${profile.context_work.join('\n')}`);
+      if (profile.context_goals?.length)   lines.push(`## Goals & Plans\n${profile.context_goals.join('\n')}`);
+      if (profile.context_notes?.length)   lines.push(`## Extra Context\n${profile.context_notes.join('\n')}`);
+      if (profile.context_people?.length) {
+        const people = profile.context_people.map(p => {
+          try { return JSON.parse(p); } catch { return { name: p }; }
+        });
+        const text = people.map(p => {
+          const parts = [`- ${p.name}`];
+          if (p.relationship) parts.push(`(${p.relationship})`);
+          if (p.birthday)     parts.push(`birthday: ${p.birthday}`);
+          if (p.interests)    parts.push(`interests: ${p.interests}`);
+          if (p.notes)        parts.push(`notes: ${p.notes}`);
+          return parts.join(', ');
+        }).join('\n');
+        lines.push(`## People in My Life\n${text}`);
+      }
+      if (profile.ai_personality) lines.push(`## How to Talk to Me\n${profile.ai_personality}`);
     }
-    if (profile.ai_personality) lines.push(`## How to Talk to Me\n${profile.ai_personality}`);
+
+    if (projects.length > 0) {
+      const tasksByProject = {};
+      for (const t of allProjectTasks) {
+        if (!tasksByProject[t.project_id]) tasksByProject[t.project_id] = [];
+        tasksByProject[t.project_id].push(t);
+      }
+      const projectText = projects.map(p => {
+        const tasks = tasksByProject[p.id] || [];
+        const done  = tasks.filter(t => t.is_done).length;
+        const pct   = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
+        const pending = tasks.filter(t => !t.is_done).map(t => `  - ${t.name}${t.due_date ? ` (due ${t.due_date})` : ''}`).join('\n');
+        return `- **${p.name}** (${p.type}, ${p.status})${p.deadline ? ` — deadline: ${p.deadline}` : ''} — ${pct}% complete (${done}/${tasks.length} tasks)${pending ? `\n  Pending tasks:\n${pending}` : ''}`;
+      }).join('\n');
+      lines.push(`## My Projects\n${projectText}`);
+    }
 
     if (lines.length === 0) return BASE_SYSTEM;
 
