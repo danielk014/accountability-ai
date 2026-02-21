@@ -90,7 +90,8 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
     completions.filter((c) => c.completed_date === dateStr).map((c) => c.task_id)
   );
 
-  const timedTasks = dayTasks.filter((t) => t.scheduled_time && !placedEvents[t.id]);
+  // Tasks with a scheduled_time always show in their time slot (never excluded by placedEvents)
+  const timedTasks = dayTasks.filter((t) => t.scheduled_time);
   const untimedTasks = dayTasks.filter((t) => !t.scheduled_time && !placedEvents[t.id]);
 
   // Group timed tasks by hour for rendering inside hour rows
