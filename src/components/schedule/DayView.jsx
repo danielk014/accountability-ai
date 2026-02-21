@@ -98,9 +98,7 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
   const [dragOver, setDragOver] = useState(null);
   // localTimes: overrides for scheduled_time while dragging (taskId -> "HH:MM")
   const [localTimes, setLocalTimes] = useState({});
-
-  // Reset local times when tasks prop changes (e.g. after DB update)
-  useEffect(() => { setLocalTimes({}); }, [tasks]);
+  const pendingSave = useRef({});
 
   const dayTasks = tasks.filter((t) => taskAppliesOnDate(t, date));
   const completedIds = new Set(
