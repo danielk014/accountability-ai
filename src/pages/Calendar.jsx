@@ -220,10 +220,7 @@ export default function Calendar() {
                 base44.entities.Task.update(taskId, { scheduled_time: time, scheduled_date: dayStr });
                 queryClient.invalidateQueries({ queryKey: ["tasks"] });
               }}
-              onAddTask={(dateStr) => {
-                setCurrentDate(new Date(dateStr + "T12:00:00"));
-                setShowForm(true);
-              }}
+              onRemoveTask={(task) => unscheduleTaskMutation.mutate(task)}
             />
           )}
         </div>
