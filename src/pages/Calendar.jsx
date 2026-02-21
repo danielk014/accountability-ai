@@ -216,6 +216,14 @@ export default function Calendar() {
               tasks={activeTasks}
               completions={completions}
               onToggle={(task, date) => toggleCompletionMutation.mutate({ task, date })}
+              onDropTask={(taskId, time, dayStr) => {
+                base44.entities.Task.update(taskId, { scheduled_time: time, scheduled_date: dayStr });
+                queryClient.invalidateQueries({ queryKey: ["tasks"] });
+              }}
+              onAddTask={(dateStr) => {
+                setCurrentDate(new Date(dateStr + "T12:00:00"));
+                setShowForm(true);
+              }}
             />
           )}
         </div>
