@@ -270,29 +270,7 @@ export default function WeekView({ date, tasks, completions, onToggle, onDropTas
                 </div>
               ))}
 
-              {/* Untimed tasks — small chips at very top */}
-              {untimedTasks.length > 0 && (
-                <div className="absolute left-0.5 right-0.5 top-0.5 z-10 space-y-0.5">
-                  {untimedTasks.map((task) => {
-                    const done = completedIds.has(task.id);
-                    const color = CATEGORY_BLOCK[task.category] || CATEGORY_BLOCK.other;
-                    return (
-                      <button
-                        key={task.id}
-                        onClick={() => onToggle(task, day)}
-                        className={`w-full flex items-center gap-1 px-1.5 py-0.5 rounded border-l-2 text-left text-xs font-medium transition-all ${
-                          done ? "opacity-40 bg-slate-50 border-l-slate-200 text-slate-400" : color
-                        }`}
-                      >
-                        {done
-                          ? <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500 flex-shrink-0" />
-                          : <Circle className="w-2.5 h-2.5 flex-shrink-0 opacity-50" />}
-                        <span className={`truncate ${done ? "line-through" : ""}`}>{task.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+
 
               {/* Timed tasks — draggable & resizable */}
               {timedTasks.map((task) => (
