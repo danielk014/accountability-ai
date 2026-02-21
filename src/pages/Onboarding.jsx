@@ -89,7 +89,7 @@ export default function Onboarding() {
 
   const isStepComplete = () => {
     if (step === 1) return formData.timezone && formData.language;
-    if (step === 2) return formData.dateFormat && formData.motivation_style;
+    if (step === 2) return formData.dateFormat;
     if (step === 3) return formData.goals.trim().length > 0;
     return true;
   };
