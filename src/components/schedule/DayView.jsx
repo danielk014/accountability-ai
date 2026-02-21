@@ -122,15 +122,17 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
     const yPx = getGridTop(e.clientY);
 
     if (timedTaskId) {
-      // Snap to nearest 15 min
       const snappedTop = Math.round(yPx / (SLOT_HEIGHT / 4)) * (SLOT_HEIGHT / 4);
       const newTime = topToTime(Math.max(0, snappedTop));
+      // Update local state immediately so card stays in new position
       setLocalTimes(prev => ({ ...prev, [timedTaskId]: newTime }));
+      pendingSave.current[timedTaskId] = newTime;
       onDropTask?.(timedTaskId, newTime);
     } else if (sidebarTaskId) {
       const snappedTop = Math.round(yPx / (SLOT_HEIGHT / 2)) * (SLOT_HEIGHT / 2);
       const newTime = topToTime(Math.max(0, snappedTop));
       setLocalTimes(prev => ({ ...prev, [sidebarTaskId]: newTime }));
+      pendingSave.current[sidebarTaskId] = newTime;
       onDropTask?.(sidebarTaskId, newTime);
     }
     setDragOver(null);
