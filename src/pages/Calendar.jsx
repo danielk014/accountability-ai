@@ -78,10 +78,10 @@ export default function Calendar() {
     },
   });
 
-  const removeTaskMutation = useMutation({
+  // X button: just unschedule (clear time) so it goes back to the sidebar
+  const unscheduleTaskMutation = useMutation({
     mutationFn: async (task) => {
-      await base44.entities.Task.update(task.id, { is_active: false });
-      toast.success(`Removed "${task.name}"`);
+      await base44.entities.Task.update(task.id, { scheduled_time: null });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tasks"] }),
   });
