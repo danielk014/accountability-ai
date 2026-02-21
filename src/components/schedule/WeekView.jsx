@@ -4,6 +4,8 @@ import { CheckCircle2, Circle, X } from "lucide-react";
 
 const HOURS = Array.from({ length: 18 }, (_, i) => i + 6); // 6am–11pm
 const SLOT_HEIGHT = 44; // smaller than DayView's 64px
+const MIN_HEIGHT = SLOT_HEIGHT / 2; // 22px minimum
+const SNAP = SLOT_HEIGHT / 4; // snap to 15 min
 
 const CATEGORY_BLOCK = {
   health: "bg-emerald-100 border-l-emerald-400 text-emerald-800",
