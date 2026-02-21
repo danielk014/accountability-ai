@@ -204,7 +204,7 @@ export default function Calendar() {
           {view === "day" ? (
             <DayView
               date={currentDate}
-              tasks={activeTasks}
+              tasks={activeTasks.filter(t => taskAppliesOnDate(t, currentDate))}
               completions={completions}
               onToggle={(task, date) => toggleCompletionMutation.mutate({ task, date })}
               onRemoveTask={(task) => removeTaskMutation.mutate(task)}
