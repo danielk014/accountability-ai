@@ -33,7 +33,7 @@ export default function TaskSidebar({ tasks, onDragStart }) {
                 draggable
                 onDragStart={(e) => {
                   e.dataTransfer.setData("taskId", task.id);
-                  e.dataTransfer.effectAllowed = "copy";
+                  e.dataTransfer.effectAllowed = "move";
                   onDragStart?.(task);
                 }}
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium cursor-grab active:cursor-grabbing transition-all hover:shadow-sm select-none ${color}`}
