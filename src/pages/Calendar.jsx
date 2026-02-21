@@ -221,7 +221,7 @@ export default function Calendar() {
         </div>
 
         {/* Task sidebar */}
-        <TaskSidebar tasks={activeTasks} />
+        <TaskSidebar tasks={sidebarTasks} />
       </div>
 
       <TaskFormDialog
