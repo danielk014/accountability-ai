@@ -91,12 +91,22 @@ function TimedTaskBlock({ task, dayStr, localData, completed, color, onToggle, o
      if (!dragStateRef.current) return;
      const { type, startY, startX, startTop, startHeight, dayIdx } = dragStateRef.current;
      const dy = e.clientY - startY;
-     const dx = e.clientX - startX;
 
-     // Determine which day we're over based on x position (apply to all operation types)
+     // Determine which day we're over based on absolute x position
+     // Find the grid container and calculate which column the mouse is over
+     const gridContainers = Object.values(gridRefs.current);
      let newDayIdx = dayIdx;
-     if (dx < -80 && dayIdx > 0) newDayIdx--;
-     if (dx > 80 && dayIdx < days.length - 1) newDayIdx++;
+     
+     if (gridContainers.length > 0) {
+       const firstGrid = gridContainers[0];
+       if (firstGrid) {
+         const containerRect = firstGrid.parentElement.getBoundingClientRect();
+         const columnWidth = containerRect.width / 7;
+         const relativeX = e.clientX - containerRect.left;
+         const calculatedIdx = Math.floor(relativeX / columnWidth);
+         newDayIdx = Math.max(0, Math.min(calculatedIdx, days.length - 1));
+       }
+     }
 
      // Notify parent of target day change during drag
      if (newDayIdx !== dayIdx && onDayChange) {
