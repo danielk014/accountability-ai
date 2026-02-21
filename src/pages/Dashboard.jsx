@@ -21,10 +21,18 @@ export default function Dashboard() {
     queryFn: () => base44.auth.me(),
   });
 
-  const { data: tasks = [] } = useQuery({
+  const { data: tasks = [], refetch: refetchTasks } = useQuery({
     queryKey: ["tasks", user?.email],
     queryFn: () => user?.email ? base44.entities.Task.filter({ created_by: user.email }) : [],
   });
+
+  // Real-time: refresh tasks when AI creates/updates/deletes them
+  React.useEffect(() => {
+    const unsub = base44.entities.Task.subscribe(() => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    });
+    return unsub;
+  }, []);
 
   const { data: completions = [] } = useQuery({
     queryKey: ["completions", user?.email],
