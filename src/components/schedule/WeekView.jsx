@@ -213,9 +213,10 @@ export default function WeekView({ date, tasks, completions, onToggle, onDropTas
     setDragOver(null);
   };
 
-  const handleMoveEnd = useCallback((taskId, dayStr, finalTop) => {
+  const handleMoveEnd = useCallback((taskId, dayStr, finalTop, finalHeight) => {
     const newTime = topToTime(finalTop);
-    setLocalData(prev => ({ ...prev, [taskId]: { ...prev[taskId], time: newTime } }));
+    const durationMin = finalHeight ? Math.round(topToMinutes(finalHeight) / 15) * 15 : 60;
+    setLocalData(prev => ({ ...prev, [taskId]: { time: newTime, durationMin } }));
     onDropTask?.(taskId, newTime, dayStr);
   }, [onDropTask]);
 
