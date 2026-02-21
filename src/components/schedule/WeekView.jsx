@@ -110,9 +110,12 @@ function TimedTaskBlock({ task, dayStr, localData, completed, color, onToggle, o
      >
        <div
          className="flex items-center gap-1 px-1.5 py-0.5 h-full cursor-grab active:cursor-grabbing group"
-         onPointerDown={onPointerDown}
+         onPointerDown={(e) => {
+           if (e.target.closest("button")) return;
+           onPointerDown(e);
+         }}
        >
-         <button type="button" className="flex-shrink-0 z-20 pointer-events-auto" onClick={(e) => { e.stopPropagation(); e.preventDefault(); onToggle(); }}>
+         <button type="button" className="flex-shrink-0 z-20" onClick={(e) => { e.stopPropagation(); onToggle(); }}>
            {completed
              ? <CheckCircle2 className="w-2.5 h-2.5 text-emerald-500 flex-shrink-0" />
              : <Circle className="w-2.5 h-2.5 flex-shrink-0 opacity-50" />}
@@ -120,8 +123,8 @@ function TimedTaskBlock({ task, dayStr, localData, completed, color, onToggle, o
          <span className={`text-xs font-semibold truncate flex-1 pointer-events-none ${completed ? "line-through" : ""}`}>{task.name}</span>
          <button
            type="button"
-           className="flex-shrink-0 p-0.5 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity z-20 pointer-events-auto"
-           onClick={(e) => { e.stopPropagation(); e.preventDefault(); onRemove(); }}
+           className="flex-shrink-0 p-0.5 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity z-20"
+           onClick={(e) => { e.stopPropagation(); onRemove(); }}
          >
            <X className="w-2.5 h-2.5" />
          </button>
