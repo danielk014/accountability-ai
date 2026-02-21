@@ -1,5 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
-
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { format, isSameDay } from "date-fns";
 import { CheckCircle2, Circle, X } from "lucide-react";
 
@@ -20,10 +19,7 @@ function taskAppliesOnDate(task, date) {
   const dow = format(date, "EEEE").toLowerCase();
   const isWeekday = !["saturday", "sunday"].includes(dow);
   const dateStr = format(date, "yyyy-MM-dd");
-
-  if (task.frequency === "once") {
-    return task.scheduled_date === dateStr;
-  }
+  if (task.frequency === "once") return task.scheduled_date === dateStr;
   if (task.frequency === "daily") return true;
   if (task.frequency === "weekdays") return isWeekday;
   if (task.frequency === "weekends") return !isWeekday;
@@ -36,36 +32,55 @@ function formatHour(hour) {
   return hour < 12 ? `${hour} AM` : `${hour - 12} PM`;
 }
 
-// Placed event card with drag-to-move
-function EventCard({ task, top, height, done, onToggle, onMove, onRemove, color }) {
-  const color2 = color || CATEGORY_COLORS[task.category] || CATEGORY_COLORS.other;
+// Convert pixel top (relative to grid) to HH:MM time string
+function topToTime(top) {
+  const totalMinutes = Math.round((top / SLOT_HEIGHT) * 60);
+  const hour = Math.floor(totalMinutes / 60) + 6;
+  const min = totalMinutes % 60;
+  return `${String(Math.min(hour, 23)).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+}
 
-  const handleDragStart = (e) => {
-    e.stopPropagation();
-    e.dataTransfer.setData("placedTaskId", task.id);
-    e.dataTransfer.setData("dragOffsetY", String(e.nativeEvent.offsetY));
-    e.dataTransfer.effectAllowed = "move";
-  };
+// Convert HH:MM to pixel top
+function timeToTop(timeStr) {
+  const [h, m] = timeStr.split(":").map(Number);
+  return ((h - 6) + m / 60) * SLOT_HEIGHT;
+}
+
+function EventCard({ task, top, done, onToggle, onRemove, onDragEnd, color }) {
+  const cardColor = color || CATEGORY_COLORS[task.category] || CATEGORY_COLORS.other;
+  const dragStartY = useRef(null);
+  const dragStartTop = useRef(null);
 
   return (
     <div
       draggable
-      onDragStart={handleDragStart}
-      className={`absolute left-1 right-1 rounded-xl border-l-4 shadow-sm select-none overflow-hidden cursor-grab active:cursor-grabbing ${color2} ${done ? "opacity-50" : ""}`}
-      style={{ top, height: Math.max(height, 28), zIndex: 5 }}
+      onDragStart={(e) => {
+        dragStartY.current = e.clientY;
+        dragStartTop.current = top;
+        e.dataTransfer.setData("timedTaskId", task.id);
+        e.dataTransfer.effectAllowed = "move";
+      }}
+      onDragEnd={(e) => {
+        // Fallback handled by grid drop
+      }}
+      className={`absolute left-1 right-1 rounded-xl border-l-4 shadow-sm select-none overflow-hidden cursor-grab active:cursor-grabbing ${cardColor} ${done ? "opacity-50" : ""}`}
+      style={{ top, height: SLOT_HEIGHT - 4, zIndex: 5 }}
     >
-      <div className="flex items-start gap-1.5 px-2 py-1.5 h-full">
+      <div className="flex items-start gap-1.5 px-2 py-1.5 h-full group">
         <button onClick={() => onToggle(task)} className="mt-0.5 flex-shrink-0">
           {done
             ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
             : <Circle className="w-3.5 h-3.5 opacity-60" />}
         </button>
-        <span className={`text-xs font-medium flex-1 leading-tight ${done ? "line-through" : ""}`}>
-          {task.name}
-        </span>
+        <div className="flex-1 min-w-0">
+          <span className={`text-xs font-semibold leading-tight ${done ? "line-through" : ""}`}>
+            {task.name}
+          </span>
+          <p className="text-xs opacity-60 mt-0.5">{task.scheduled_time}</p>
+        </div>
         <button
-          onClick={(e) => { e.stopPropagation(); onRemove(task.id); }}
-          className="flex-shrink-0 p-0.5 rounded hover:bg-black/10 opacity-50 hover:opacity-100 transition-opacity"
+          onClick={(e) => { e.stopPropagation(); onRemove(task); }}
+          className="flex-shrink-0 p-0.5 rounded hover:bg-black/10 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity"
         >
           <X className="w-3 h-3" />
         </button>
@@ -80,27 +95,21 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
   const nowHour = new Date().getHours();
   const nowMin = new Date().getMinutes();
   const gridRef = useRef(null);
+  const [dragOver, setDragOver] = useState(null);
+  // localTimes: overrides for scheduled_time while dragging (taskId -> "HH:MM")
+  const [localTimes, setLocalTimes] = useState({});
 
-  const [dragOver, setDragOver] = useState(null); // hour being dragged over
-  // placed events: { taskId, top (px), height (px) }
-  const [placedEvents, setPlacedEvents] = useState({});
+  // Reset local times when tasks prop changes (e.g. after DB update)
+  useEffect(() => { setLocalTimes({}); }, [tasks]);
 
   const dayTasks = tasks.filter((t) => taskAppliesOnDate(t, date));
   const completedIds = new Set(
     completions.filter((c) => c.completed_date === dateStr).map((c) => c.task_id)
   );
 
-  // Tasks with a scheduled_time always show in their time slot (never excluded by placedEvents)
-  const timedTasks = dayTasks.filter((t) => t.scheduled_time);
-  const untimedTasks = dayTasks.filter((t) => !t.scheduled_time && !placedEvents[t.id]);
-
-  // Group timed tasks by hour for rendering inside hour rows
-  const tasksByHour = {};
-  timedTasks.forEach((t) => {
-    const hour = parseInt(t.scheduled_time.split(":")[0]);
-    if (!tasksByHour[hour]) tasksByHour[hour] = [];
-    tasksByHour[hour].push(t);
-  });
+  // All tasks with a time (use localTimes override if present)
+  const timedTasks = dayTasks.filter((t) => t.scheduled_time || localTimes[t.id]);
+  const untimedTasks = dayTasks.filter((t) => !t.scheduled_time && !localTimes[t.id]);
 
   const getGridTop = useCallback((clientY) => {
     const rect = gridRef.current?.getBoundingClientRect();
@@ -108,105 +117,44 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
     return Math.max(0, clientY - rect.top);
   }, []);
 
-  // Returns a non-overlapping top for a given taskId, desired top, and height
-  const resolveNoOverlap = useCallback((currentEvents, taskId, desiredTop, height) => {
-    const others = Object.entries(currentEvents)
-      .filter(([id]) => id !== taskId)
-      .map(([, ev]) => ev)
-      .sort((a, b) => a.top - b.top);
-
-    let top = Math.max(0, desiredTop);
-
-    // Keep nudging down until no collision
-    let changed = true;
-    while (changed) {
-      changed = false;
-      for (const other of others) {
-        const overlapStart = Math.max(top, other.top);
-        const overlapEnd = Math.min(top + height, other.top + other.height);
-        if (overlapEnd > overlapStart) {
-          // Push down below this event
-          top = other.top + other.height;
-          changed = true;
-        }
-      }
-    }
-    return top;
-  }, []);
-
   const handleDrop = (e) => {
-   e.preventDefault();
-   const placedTaskId = e.dataTransfer.getData("placedTaskId");
-   const taskId = e.dataTransfer.getData("taskId");
-   const yPx = getGridTop(e.clientY);
+    e.preventDefault();
+    const timedTaskId = e.dataTransfer.getData("timedTaskId");
+    const sidebarTaskId = e.dataTransfer.getData("taskId");
+    const yPx = getGridTop(e.clientY);
 
-   if (placedTaskId) {
-     // Moving an already-placed event
-     const offsetY = parseInt(e.dataTransfer.getData("dragOffsetY") || "0");
-     const desiredTop = Math.max(0, yPx - offsetY);
-     const height = SLOT_HEIGHT;
-     const newTop = resolveNoOverlap({ ...placedEvents }, placedTaskId, desiredTop, height);
-
-     // Calculate the hour from the new top position
-     const newHour = Math.floor(newTop / SLOT_HEIGHT) + 6;
-     const newTime = String(newHour).padStart(2, '0') + ":00";
-
-     setPlacedEvents(prev => ({ ...prev, [placedTaskId]: { top: newTop, height } }));
-     onDropTask?.(placedTaskId, newTime, height);
-   } else if (taskId) {
-     // Dropping a new task from sidebar
-     const snapped = Math.round(yPx / (SLOT_HEIGHT / 2)) * (SLOT_HEIGHT / 2);
-     const height = SLOT_HEIGHT;
-     const top = resolveNoOverlap({ ...placedEvents }, taskId, snapped, height);
-     setPlacedEvents(prev => ({ ...prev, [taskId]: { top, height } }));
-     const hour = Math.floor(top / SLOT_HEIGHT) + 6;
-     const time = String(hour).padStart(2, '0') + ":00";
-     onDropTask?.(taskId, time, SLOT_HEIGHT);
-   }
-   setDragOver(null);
+    if (timedTaskId) {
+      // Snap to nearest 15 min
+      const snappedTop = Math.round(yPx / (SLOT_HEIGHT / 4)) * (SLOT_HEIGHT / 4);
+      const newTime = topToTime(Math.max(0, snappedTop));
+      setLocalTimes(prev => ({ ...prev, [timedTaskId]: newTime }));
+      onDropTask?.(timedTaskId, newTime);
+    } else if (sidebarTaskId) {
+      const snappedTop = Math.round(yPx / (SLOT_HEIGHT / 2)) * (SLOT_HEIGHT / 2);
+      const newTime = topToTime(Math.max(0, snappedTop));
+      setLocalTimes(prev => ({ ...prev, [sidebarTaskId]: newTime }));
+      onDropTask?.(sidebarTaskId, newTime);
+    }
+    setDragOver(null);
   };
 
   const handleDragOver = (e) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
+    e.dataTransfer.dropEffect = "move";
     const yPx = getGridTop(e.clientY);
-    const hour = Math.floor(yPx / SLOT_HEIGHT);
-    setDragOver(HOURS[Math.min(hour, HOURS.length - 1)]);
+    const hourIdx = Math.min(Math.floor(yPx / SLOT_HEIGHT), HOURS.length - 1);
+    setDragOver(HOURS[hourIdx]);
   };
 
-  const handleRemovePlaced = (taskId) => {
-    setPlacedEvents(prev => {
-      const next = { ...prev };
-      delete next[taskId];
-      return next;
-    });
-  };
-
-  // Compute dynamic row heights so tasks don't overflow/overlap
-  const rowHeights = HOURS.map((hour) => {
-    const count = (tasksByHour[hour] || []).length;
-    // Each task card is ~36px + 4px gap, minimum is SLOT_HEIGHT
-    return Math.max(SLOT_HEIGHT, count * 40 + 12);
-  });
-
-  // Compute cumulative tops for each hour row
-  const rowTops = rowHeights.reduce((acc, h, i) => {
-    acc.push(i === 0 ? 0 : acc[i - 1] + rowHeights[i - 1]);
-    return acc;
-  }, []);
-
-  const totalGridHeight = rowTops[rowTops.length - 1] + rowHeights[rowHeights.length - 1];
+  const totalGridHeight = HOURS.length * SLOT_HEIGHT;
   const nowTop = (() => {
     const hourIdx = nowHour - 6;
-    if (hourIdx < 0 || hourIdx >= HOURS.length) return 0;
-    const fraction = nowMin / 60;
-    return rowTops[hourIdx] + fraction * rowHeights[hourIdx];
+    if (hourIdx < 0 || hourIdx >= HOURS.length) return -1;
+    return hourIdx * SLOT_HEIGHT + (nowMin / 60) * SLOT_HEIGHT;
   })();
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden flex-1">
-
-
       {/* Hourly timeline */}
       <div
         ref={gridRef}
@@ -216,56 +164,75 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
         onDragOver={handleDragOver}
         onDragLeave={() => setDragOver(null)}
       >
-        {/* Hour rows */}
+        {/* Hour rows (grid lines + labels) */}
         {HOURS.map((hour, idx) => {
           const isCurrentHour = isToday && hour === nowHour;
-          const tasks = tasksByHour[hour] || [];
           return (
             <div
               key={hour}
-              className={`absolute left-0 right-0 border-b border-slate-50 ${dragOver === hour ? "bg-indigo-50" : ""}`}
-              style={{ top: rowTops[idx], height: rowHeights[idx] }}
+              className={`absolute left-0 right-0 border-b border-slate-50 ${dragOver === hour ? "bg-indigo-50/50" : ""}`}
+              style={{ top: idx * SLOT_HEIGHT, height: SLOT_HEIGHT }}
             >
-              {/* Time label */}
               <div className="absolute left-0 w-16 pt-2 pr-3 text-right">
                 <span className={`text-xs font-medium ${isCurrentHour ? "text-indigo-600" : "text-slate-400"}`}>
                   {formatHour(hour)}
                 </span>
               </div>
-              {/* Half-hour line */}
-              <div className="absolute left-16 right-0 border-b border-dashed border-slate-100" style={{ top: rowHeights[idx] / 2 }} />
-              {/* Regular tasks in this slot */}
-              <div className="ml-16 pr-2 pt-1.5 space-y-1">
-                {tasks.map((task) => {
-                  const done = completedIds.has(task.id);
-                  const color = CATEGORY_COLORS[task.category] || CATEGORY_COLORS.other;
-                  return (
-                    <div
-                      key={task.id}
-                      className={`group w-full flex items-center gap-2 px-3 py-1.5 rounded-xl border text-left text-xs font-medium transition-all hover:shadow-sm ${
-                        done ? "opacity-50 bg-slate-50 border-slate-100 text-slate-400" : color
-                      }`}
-                    >
-                      <button onClick={() => onToggle(task, date)} className="flex items-center gap-2 flex-1 min-w-0">
-                        {done ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" /> : <Circle className="w-3.5 h-3.5 flex-shrink-0" />}
-                        <span className={done ? "line-through" : ""}>{task.name}</span>
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onRemoveTask?.(task); }}
-                        className="opacity-0 group-hover:opacity-60 hover:!opacity-100 flex-shrink-0 p-0.5 rounded hover:bg-black/10 transition-opacity"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
+              <div className="absolute left-16 right-0 border-b border-dashed border-slate-100" style={{ top: SLOT_HEIGHT / 2 }} />
             </div>
           );
         })}
 
+        {/* Timed task EventCards */}
+        {timedTasks.map((task) => {
+          const timeStr = localTimes[task.id] || task.scheduled_time;
+          const top = timeToTop(timeStr);
+          const done = completedIds.has(task.id);
+          const color = CATEGORY_COLORS[task.category] || CATEGORY_COLORS.other;
+          return (
+            <EventCard
+              key={task.id}
+              task={{ ...task, scheduled_time: timeStr }}
+              top={top}
+              done={done}
+              color={color}
+              onToggle={(t) => onToggle(t, date)}
+              onRemove={(t) => onRemoveTask?.(t)}
+            />
+          );
+        })}
+
+        {/* Untimed tasks — shown as a list at the top */}
+        {untimedTasks.length > 0 && (
+          <div className="absolute left-16 right-2 top-2 z-10 space-y-1">
+            {untimedTasks.map((task) => {
+              const done = completedIds.has(task.id);
+              const color = CATEGORY_COLORS[task.category] || CATEGORY_COLORS.other;
+              return (
+                <div
+                  key={task.id}
+                  className={`group w-full flex items-center gap-2 px-3 py-1.5 rounded-xl border text-left text-xs font-medium transition-all hover:shadow-sm ${
+                    done ? "opacity-50 bg-slate-50 border-slate-100 text-slate-400" : color
+                  }`}
+                >
+                  <button onClick={() => onToggle(task, date)} className="flex items-center gap-2 flex-1 min-w-0">
+                    {done ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" /> : <Circle className="w-3.5 h-3.5 flex-shrink-0" />}
+                    <span className={done ? "line-through" : ""}>{task.name}</span>
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onRemoveTask?.(task); }}
+                    className="opacity-0 group-hover:opacity-60 hover:!opacity-100 flex-shrink-0 p-0.5 rounded hover:bg-black/10 transition-opacity"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {/* Current time indicator */}
-        {isToday && nowHour >= 6 && nowHour <= 23 && (
+        {isToday && nowTop >= 0 && (
           <div
             className="absolute left-16 right-0 flex items-center z-20 pointer-events-none"
             style={{ top: nowTop }}
@@ -275,31 +242,10 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
           </div>
         )}
 
-        {/* Dragged/placed events */}
-        {Object.entries(placedEvents).map(([taskId, ev]) => {
-          const task = tasks.find(t => t.id === taskId) || dayTasks.find(t => t.id === taskId);
-          if (!task) return null;
-          const done = completedIds.has(task.id);
-          const color = CATEGORY_COLORS[task.category] || CATEGORY_COLORS.other;
-          return (
-            <div key={taskId} className="absolute" style={{ left: 64, right: 8, top: ev.top, height: ev.height, zIndex: 10 }}>
-              <EventCard
-                task={task}
-                top={0}
-                height={ev.height}
-                done={done}
-                onToggle={(t) => onToggle(t, date)}
-                onRemove={handleRemovePlaced}
-                color={color}
-              />
-            </div>
-          );
-        })}
-
         {/* Drop hint */}
         {dragOver !== null && (
           <div
-            className="absolute left-16 right-2 h-12 rounded-xl border-2 border-dashed border-indigo-400 bg-indigo-50/70 flex items-center justify-center pointer-events-none z-20"
+            className="absolute left-16 right-2 h-14 rounded-xl border-2 border-dashed border-indigo-400 bg-indigo-50/70 flex items-center justify-center pointer-events-none z-20"
             style={{ top: (HOURS.indexOf(dragOver)) * SLOT_HEIGHT + 4 }}
           >
             <span className="text-xs text-indigo-500 font-medium">Drop here — {formatHour(dragOver)}</span>
