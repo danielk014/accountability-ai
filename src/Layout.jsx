@@ -48,7 +48,7 @@ export default function Layout({ children, currentPageName }) {
 
       {/* Top nav */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-4 flex items-center justify-between h-16">
+        <div className="w-full px-6 flex items-center justify-between h-16">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-[#1e2228] flex items-center justify-center overflow-hidden">
               <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/699863bb9965c7b81ed00428/8af80c917_c05151408_logo.png" alt="Logo" className="w-7 h-7 object-contain" />
