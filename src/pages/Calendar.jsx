@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, startOfWeek, addDays, isSameDay, parseISO } from "date-fns";
-import { ChevronLeft, ChevronRight, Plus, RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useState as useStateLocal } from "react";
@@ -15,7 +15,7 @@ import CalendarPicker from "../components/schedule/CalendarPicker.jsx";
 export default function Calendar() {
   const [view, setView] = useState("day");
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [isSyncingCalendar, setIsSyncingCalendar] = useState(false);
+
   const queryClient = useQueryClient();
 
   const { data: user } = useQuery({
@@ -129,27 +129,6 @@ export default function Calendar() {
 
   const isToday = isSameDay(currentDate, new Date());
 
-  const handleSyncCalendar = async () => {
-    setIsSyncingCalendar(true);
-    try {
-      const response = await base44.functions.invoke("getCalendarEvents");
-      if (response.data?.error && response.data?.error.includes('not connected')) {
-        toast.error("Connect your Google Calendar in Settings first");
-        window.location.href = createPageUrl("Settings");
-      } else {
-        toast.success(`Synced ${response.data?.count || 0} events!`);
-      }
-    } catch (error) {
-      if (error.response?.status === 403) {
-        toast.error("Connect your Google Calendar in Settings first");
-        window.location.href = createPageUrl("Settings");
-      } else {
-        toast.error("Failed to sync calendar");
-      }
-    } finally {
-      setIsSyncingCalendar(false);
-    }
-  };
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
@@ -176,19 +155,6 @@ export default function Calendar() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Sync calendar */}
-          <Button
-            onClick={handleSyncCalendar}
-            disabled={isSyncingCalendar}
-            variant="outline"
-            size="sm"
-            className="rounded-xl"
-            title="Connect your Gmail account in Settings to sync calendar"
-          >
-            <RefreshCw className={`w-4 h-4 ${isSyncingCalendar ? "animate-spin" : ""}`} />
-            <span className="hidden sm:inline ml-1">Sync Gmail Calendar</span>
-          </Button>
-
           {/* View toggle */}
           <div className="flex items-center bg-slate-100 rounded-xl p-1">
             {["day", "week"].map((v) => (
