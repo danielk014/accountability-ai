@@ -782,11 +782,7 @@ function ProjectCard({ project, tasks, onEdit, onDelete, onSelect }) {
     >
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2 flex-wrap">
-          {/* App logo in project color */}
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0"
-            style={{ backgroundColor: project.color || PROJECT_COLORS[0] }}>
-            <img src={APP_LOGO} alt="Logo" className="w-5 h-5 object-contain" />
-          </div>
+          <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: project.color || PROJECT_COLORS[0] }} />
           <span className={cn("text-xs px-2 py-0.5 rounded-full border font-medium", tc.bg)}>{tc.label}</span>
           <span className={cn("text-xs px-2 py-0.5 rounded-full font-medium", sc.bg)}>{sc.label}</span>
         </div>
