@@ -51,7 +51,9 @@ import Admin from './pages/Admin';
 import Calendar from './pages/Calendar';
 import Chat from './pages/Chat';
 import Dashboard from './pages/Dashboard';
+import Financials from './pages/Financials';
 import Habits from './pages/Habits';
+import Login from './pages/Login';
 import Onboarding from './pages/Onboarding';
 import Pomodoro from './pages/Pomodoro';
 import Progress from './pages/Progress';
@@ -64,6 +66,7 @@ export const PAGES = {
     "Calendar": Calendar,
     "Chat": Chat,
     "Dashboard": Dashboard,
+    "Financials": Financials,
     "Habits": Habits,
     "Onboarding": Onboarding,
     "Pomodoro": Pomodoro,

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Pencil, Loader2, Check, Flag } from "lucide-react";
+import { Plus, Trash2, Pencil, Loader2, Flag } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -211,7 +211,7 @@ export default function Habits() {
                 className="flex items-center gap-4 p-4 bg-white border border-slate-200 rounded-2xl hover:shadow-md transition-all group"
               >
                 <button
-                  onClick={() => updateMutation.mutate({ id: item.id, data: { is_done: true } })}
+                  onClick={() => updateMutation.mutate({ id: item.id, data: { is_done: true, completed_at: new Date().toISOString() } })}
                   className="w-5 h-5 rounded-full border-2 border-slate-300 hover:border-indigo-500 flex items-center justify-center transition-colors flex-shrink-0"
                 />
                 <div className="flex-1 min-w-0">
@@ -245,28 +245,6 @@ export default function Habits() {
           <div className="text-center py-16 text-slate-400">
             <p className="text-lg font-medium">All clear!</p>
             <p className="text-sm mt-1">Add your first to-do item to get started.</p>
-          </div>
-        )}
-
-        {done.length > 0 && (
-          <div className="mt-6">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Completed ({done.length})</p>
-            <div className="space-y-2">
-              {done.map(item => (
-                <div key={item.id} className="flex items-center gap-4 p-4 bg-slate-50 border border-slate-100 rounded-2xl opacity-50 group">
-                  <button
-                    onClick={() => updateMutation.mutate({ id: item.id, data: { is_done: false } })}
-                    className="w-5 h-5 rounded-full border-2 border-emerald-400 bg-emerald-400 flex items-center justify-center flex-shrink-0"
-                  >
-                    <Check className="w-3 h-3 text-white" />
-                  </button>
-                  <p className="flex-1 text-sm text-slate-500 line-through">{item.name}</p>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setDeleteId(item.id)}>
-                    <Trash2 className="w-4 h-4 text-red-400" />
-                  </Button>
-                </div>
-              ))}
-            </div>
           </div>
         )}
       </div>

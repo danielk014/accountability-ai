@@ -41,6 +41,12 @@ export default function Calendar() {
     queryFn: () => user?.email ? base44.entities.TaskCompletion.filter({ created_by: user.email }, "-completed_date", 500) : [],
   });
 
+  const { data: profiles = [] } = useQuery({
+    queryKey: ["profile", user?.email],
+    queryFn: () => user?.email ? base44.entities.UserProfile.filter({ created_by: user.email }) : [],
+  });
+  const timezone = profiles[0]?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York";
+
   const today = format(new Date(), "yyyy-MM-dd");
   const [showForm, setShowForm] = useState(false);
 
@@ -110,17 +116,25 @@ export default function Calendar() {
     return false;
   };
 
-  // Sidebar shows untimed tasks that apply (changes based on view)
-   const sidebarTasks = (() => {
-     if (view === "day") {
-       return activeTasks.filter(
-         (t) => !t.scheduled_time?.trim() && taskAppliesOnDate(t, currentDate)
-       );
-     } else {
-       // Week view: show all untimed tasks
-       return activeTasks.filter((t) => !t.scheduled_time?.trim());
-     }
-   })();
+  // IDs of tasks completed on the currently viewed date
+  const currentDateStr = format(currentDate, "yyyy-MM-dd");
+  const completedOnCurrentDate = new Set(
+    completions.filter(c => c.completed_date === currentDateStr).map(c => c.task_id)
+  );
+
+  // Sidebar shows untimed, incomplete tasks that apply to the viewed date
+  const sidebarTasks = (() => {
+    if (view === "day") {
+      return activeTasks.filter(
+        (t) => !t.scheduled_time?.trim()
+          && taskAppliesOnDate(t, currentDate)
+          && !completedOnCurrentDate.has(t.id)
+      );
+    } else {
+      // Week view: show all untimed tasks
+      return activeTasks.filter((t) => !t.scheduled_time?.trim());
+    }
+  })();
 
   const navigate = (dir) => {
     const d = new Date(currentDate);
@@ -155,14 +169,17 @@ export default function Calendar() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold text-slate-800">Calendar</h1>
-          {!isToday && (
-            <button
-              onClick={() => setCurrentDate(new Date())}
-              className="text-xs px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600 font-medium hover:bg-indigo-100 transition"
-            >
-              Today
-            </button>
-          )}
+          <button
+            onClick={() => setCurrentDate(new Date())}
+            disabled={isToday}
+            className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all ${
+              isToday
+                ? "bg-slate-100 text-slate-400 cursor-default"
+                : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm"
+            }`}
+          >
+            Today
+          </button>
           <Button
             onClick={() => setShowForm(true)}
             size="sm"
@@ -216,6 +233,7 @@ export default function Calendar() {
               onToggle={(task, date) => toggleCompletionMutation.mutate({ task, date })}
               onRemoveTask={(task) => unscheduleTaskMutation.mutate(task)}
               onDropTask={onDropTask}
+              timezone={timezone}
             />
           ) : (
             <WeekView
@@ -228,6 +246,7 @@ export default function Calendar() {
                 queryClient.invalidateQueries({ queryKey: ["tasks"] });
               }}
               onRemoveTask={(task) => unscheduleTaskMutation.mutate(task)}
+              timezone={timezone}
             />
           )}
         </div>

@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, Plus, X, Pencil, Check, Sparkles, Upload, File, User, Briefcase, Users, Target, StickyNote, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, X, Pencil, Check, Sparkles, Upload, File, User, Briefcase, Users, Target, StickyNote, ChevronDown, ChevronUp, LogOut } from "lucide-react";
 import ScreentimeUpload from "@/components/screentime/ScreentimeUpload";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "../utils";
+import { useAuth } from "@/lib/AuthContext";
 
 const TIMEZONES = [
   "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
@@ -358,9 +359,8 @@ function PersonalitySection({ profile, saveMutation }) {
 
 export default function Settings() {
   const queryClient = useQueryClient();
-  const [isSaving, setIsSaving] = useState(false);
-  const [timezone, setTimezone] = useState("America/New_York");
-  const [motivationStyle, setMotivationStyle] = useState("direct");
+  const { user: authUser, logout } = useAuth();
+  const navigate = useNavigate();
 
   const { data: user } = useQuery({
     queryKey: ["me"],
@@ -374,13 +374,6 @@ export default function Settings() {
 
   const profile = profiles[0];
 
-  React.useEffect(() => {
-    if (profile) {
-      setTimezone(profile.timezone || "America/New_York");
-      setMotivationStyle(profile.motivation_style || "direct");
-    }
-  }, [profile]);
-
   const saveMutation = useMutation({
     mutationFn: async (data) => {
       if (profile?.id) {
@@ -392,23 +385,15 @@ export default function Settings() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["profile"] }),
   });
 
+  // Auto-save timezone immediately when changed — no intermediate state that fights re-fetches
+  const handleTimezoneChange = (tz) => {
+    saveMutation.mutate({ timezone: tz });
+    toast.success("Timezone saved!");
+  };
+
   const getItems = (key) => profile?.[key] || [];
 
-  const handleAdd = async (key, value) => {
-    // If adding a person with a birthday, create a birthday task
-    if (key === "context_people") {
-      try {
-        const person = JSON.parse(value);
-        if (person.birthday) {
-          await base44.functions.invoke('addBirthdayTask', {
-            personName: person.name,
-            birthday: person.birthday,
-          });
-        }
-      } catch (e) {
-        // Silently handle JSON parse errors
-      }
-    }
+  const handleAdd = (key, value) => {
     saveMutation.mutate({ [key]: [...getItems(key), value] });
     toast.success("Saved!");
   };
@@ -423,21 +408,9 @@ export default function Settings() {
     saveMutation.mutate({ [key]: getItems(key).filter((_, i) => i !== idx) });
   };
 
-  const handleSavePreferences = async () => {
-    setIsSaving(true);
-    try {
-      if (profile) {
-        await base44.entities.UserProfile.update(profile.id, { timezone, motivation_style: motivationStyle });
-      } else {
-        await base44.entities.UserProfile.create({ timezone, motivation_style: motivationStyle });
-      }
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
-      toast.success("Preferences saved!");
-    } catch {
-      toast.error("Failed to save");
-    } finally {
-      setIsSaving(false);
-    }
+  const handleSignOut = () => {
+    logout();
+    navigate("/Login");
   };
 
   return (
@@ -455,30 +428,47 @@ export default function Settings() {
         </div>
 
         <div className="space-y-6">
+          {/* Account info */}
+          {authUser && (
+            <div className="bg-white rounded-2xl p-6 border border-slate-200 flex items-center gap-4">
+              {authUser.picture ? (
+                <img src={authUser.picture} alt="" className="w-12 h-12 rounded-full object-cover flex-shrink-0" />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                  <User className="w-6 h-6 text-indigo-600" />
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-slate-800 truncate">{authUser.full_name || "Your account"}</p>
+                <p className="text-xs text-slate-500 truncate">{authUser.email}</p>
+              </div>
+            </div>
+          )}
+
           {/* Preferences */}
           <div className="bg-white rounded-2xl p-6 border border-slate-200">
             <h2 className="text-lg font-bold text-slate-900 mb-4">Preferences</h2>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Timezone</Label>
-                <Select value={timezone} onValueChange={setTimezone}>
-                  <SelectTrigger className="rounded-xl h-11"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {TIMEZONES.map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <button onClick={handleSavePreferences} disabled={isSaving}
-                className="w-full py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition flex items-center justify-center gap-2">
-                {isSaving ? <><Loader2 className="w-4 h-4 animate-spin" />Saving...</> : "Save Preferences"}
-              </button>
+            <div className="space-y-2">
+              <Label>Timezone</Label>
+              <Select
+                value={profile?.timezone || "America/New_York"}
+                onValueChange={handleTimezoneChange}
+              >
+                <SelectTrigger className="rounded-xl h-11">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIMEZONES.map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-slate-400">Saved automatically when changed</p>
             </div>
           </div>
 
-          {/* AI Context sections — same as chat sidebar */}
+          {/* AI Context sections */}
           <div>
             <h2 className="text-lg font-bold text-slate-900 mb-3">AI Context</h2>
-            <p className="text-sm text-slate-500 mb-4">This information helps your AI coach understand you better. Same as the chat sidebar.</p>
+            <p className="text-sm text-slate-500 mb-4">This information helps your AI coach understand you better.</p>
             <div className="space-y-4">
               <ScreentimeUpload profile={profile} saveMutation={saveMutation} />
               <PersonalitySection profile={profile} saveMutation={saveMutation} />
@@ -500,6 +490,19 @@ export default function Settings() {
                 onUpdate={(idx, val) => handleUpdate("context_people", idx, val)}
               />
             </div>
+          </div>
+
+          {/* Sign out */}
+          <div className="bg-white rounded-2xl p-6 border border-slate-200">
+            <h2 className="text-lg font-bold text-slate-900 mb-1">Account</h2>
+            <p className="text-sm text-slate-500 mb-4">Sign out of your account on this device.</p>
+            <button
+              onClick={handleSignOut}
+              className="w-full py-3 rounded-xl border-2 border-red-200 text-red-600 font-semibold text-sm hover:bg-red-50 transition-all flex items-center justify-center gap-2"
+            >
+              <LogOut className="w-4 h-4" />
+              Sign out
+            </button>
           </div>
         </div>
       </div>

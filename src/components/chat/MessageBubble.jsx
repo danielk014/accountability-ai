@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Button } from "@/components/ui/button";
-import { Copy, Zap, CheckCircle2, AlertCircle, Loader2, ChevronRight, Clock } from 'lucide-react';
+import { Copy, Zap, CheckCircle2, AlertCircle, Loader2, ChevronRight, Clock, FileText, Image } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -90,7 +90,30 @@ export default function MessageBubble({ message }) {
         </div>
       )}
       <div className={cn("max-w-[85%]", isUser && "flex flex-col items-end")}>
-        {message.content && (
+        {/* Attachment chips (images inline, files as chips) */}
+        {isUser && message._attachments?.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-1.5 justify-end">
+            {message._attachments.map((att, i) => (
+              att.isImage && att.preview ? (
+                <img
+                  key={i}
+                  src={att.preview}
+                  alt={att.name}
+                  className="max-w-[200px] max-h-[160px] rounded-xl object-cover border border-indigo-300"
+                />
+              ) : (
+                <div key={i} className="flex items-center gap-1.5 bg-indigo-500 text-white rounded-lg px-2.5 py-1.5 text-xs max-w-[200px]">
+                  {att.isImage
+                    ? <Image className="w-3.5 h-3.5 flex-shrink-0" />
+                    : <FileText className="w-3.5 h-3.5 flex-shrink-0" />}
+                  <span className="truncate">{att.name}</span>
+                </div>
+              )
+            ))}
+          </div>
+        )}
+
+        {(message.content || (!isUser)) && (
           <div className={cn(
             "rounded-2xl px-4 py-3",
             isUser
@@ -98,7 +121,7 @@ export default function MessageBubble({ message }) {
               : "bg-white border border-slate-200 shadow-sm"
           )}>
             {isUser ? (
-              <p className="text-sm leading-relaxed">{message.content}</p>
+              <p className="text-sm leading-relaxed">{message.content || <span className="opacity-60 italic text-xs">File attached</span>}</p>
             ) : (
               <ReactMarkdown
                 className="text-sm prose prose-sm prose-slate max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"

@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import { Plus, X, Brain, ChevronDown, ChevronUp, User, Briefcase, Users, Target, StickyNote, ChevronLeft, ChevronRight, Pencil, Check, Sparkles, Upload, File, Loader2 } from "lucide-react";
+import { Plus, X, Brain, ChevronDown, ChevronUp, User, Briefcase, Users, Target, StickyNote, ChevronLeft, ChevronRight, Pencil, Check, Sparkles, Upload, File, Loader2, Bell } from "lucide-react";
 import ScreentimeUpload from "@/components/screentime/ScreentimeUpload";
+import RemindersPanel from "@/components/chat/RemindersPanel";
 import { toast } from "sonner";
 
 const SECTIONS = [
@@ -412,6 +413,7 @@ function PeopleSection({ items, onAdd, onDelete, onUpdate }) {
 export default function ContextSidebar() {
   const queryClient = useQueryClient();
   const [collapsed, setCollapsed] = useState(true);
+  const [activeTab, setActiveTab] = useState('context'); // 'context' | 'reminders'
 
   const { data: user } = useQuery({
     queryKey: ["me"],
@@ -479,49 +481,65 @@ export default function ContextSidebar() {
       {/* Expanded panel */}
       {!collapsed && (
         <div className="flex flex-col bg-white border-l border-slate-200 overflow-hidden w-full">
-          <div className="px-4 py-4 border-b border-slate-100 flex items-center gap-2.5 flex-shrink-0">
-            <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
-              <Brain className="w-4 h-4 text-violet-600" />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-slate-800">My Context</p>
-              <p className="text-xs text-slate-400">
-                {totalNotes > 0 ? `${totalNotes} saved · AI uses all of this` : "Help your AI truly know you"}
-              </p>
-            </div>
+          {/* Tab bar */}
+          <div className="flex border-b border-slate-100 flex-shrink-0">
+            <button
+              onClick={() => setActiveTab('context')}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold transition-colors ${
+                activeTab === 'context'
+                  ? 'text-violet-600 border-b-2 border-violet-500 bg-violet-50/50'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Brain className="w-3.5 h-3.5" /> Context
+            </button>
+            <button
+              onClick={() => setActiveTab('reminders')}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-semibold transition-colors ${
+                activeTab === 'reminders'
+                  ? 'text-indigo-600 border-b-2 border-indigo-500 bg-indigo-50/50'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Bell className="w-3.5 h-3.5" /> Reminders
+            </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
-            {/* Screen Time Section */}
-            <ScreentimeUpload profile={profile} saveMutation={saveMutation} compact={true} />
+          {activeTab === 'context' ? (
+            <div className="flex-1 overflow-y-auto">
+              {/* Screen Time Section */}
+              <ScreentimeUpload profile={profile} saveMutation={saveMutation} compact={true} />
 
-            {/* Files Section */}
-            <FilesSection files={profile?.context_files || []} profile={profile} saveMutation={saveMutation} queryClient={queryClient} />
+              {/* Files Section */}
+              <FilesSection files={profile?.context_files || []} profile={profile} saveMutation={saveMutation} queryClient={queryClient} />
 
-            {/* Personality Section */}
-            <PersonalitySection profile={profile} saveMutation={saveMutation} queryClient={queryClient} />
+              {/* Personality Section */}
+              <PersonalitySection profile={profile} saveMutation={saveMutation} queryClient={queryClient} />
 
-            {SECTIONS.map((section) =>
-              section.key === "context_people" ? (
-                <PeopleSection
-                  key="context_people"
-                  items={getItems("context_people")}
-                  onAdd={(val) => handleAdd("context_people", val)}
-                  onDelete={(idx) => handleDelete("context_people", idx)}
-                  onUpdate={(idx, val) => handleUpdate("context_people", idx, val)}
-                />
-              ) : (
-                <TextSection
-                  key={section.key}
-                  section={section}
-                  items={getItems(section.key)}
-                  onAdd={(text) => handleAdd(section.key, text)}
-                  onDelete={(idx) => handleDelete(section.key, idx)}
-                  onUpdate={(idx, text) => handleUpdate(section.key, idx, text)}
-                />
-              )
-            )}
-          </div>
+              {SECTIONS.map((section) =>
+                section.key === "context_people" ? (
+                  <PeopleSection
+                    key="context_people"
+                    items={getItems("context_people")}
+                    onAdd={(val) => handleAdd("context_people", val)}
+                    onDelete={(idx) => handleDelete("context_people", idx)}
+                    onUpdate={(idx, val) => handleUpdate("context_people", idx, val)}
+                  />
+                ) : (
+                  <TextSection
+                    key={section.key}
+                    section={section}
+                    items={getItems(section.key)}
+                    onAdd={(text) => handleAdd(section.key, text)}
+                    onDelete={(idx) => handleDelete(section.key, idx)}
+                    onUpdate={(idx, text) => handleUpdate(section.key, idx, text)}
+                  />
+                )
+              )}
+            </div>
+          ) : (
+            <RemindersPanel />
+          )}
         </div>
       )}
     </div>

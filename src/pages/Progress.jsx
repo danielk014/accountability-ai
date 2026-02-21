@@ -1,13 +1,42 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQuery } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Loader2, Check, Flag, RotateCcw } from "lucide-react";
+import { format, subDays } from "date-fns";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { runCleanup } from "@/api/localDB";
 
 import TimeActivityChart from "../components/progress/TimeActivityChart";
 import SleepChart from "../components/progress/SleepChart";
 
+const priorityConfig = {
+  urgent: { label: "Urgent", bg: "bg-red-50 border-red-200 text-red-600" },
+  high:   { label: "High",   bg: "bg-orange-50 border-orange-200 text-orange-600" },
+  medium: { label: "Medium", bg: "bg-yellow-50 border-yellow-200 text-yellow-600" },
+  low:    { label: "Low",    bg: "bg-slate-50 border-slate-200 text-slate-500" },
+};
+
+const categoryColors = {
+  health: "bg-emerald-50 text-emerald-600",
+  work: "bg-blue-50 text-blue-600",
+  learning: "bg-violet-50 text-violet-600",
+  personal: "bg-slate-100 text-slate-600",
+  social: "bg-pink-50 text-pink-600",
+  mindfulness: "bg-amber-50 text-amber-600",
+  other: "bg-gray-100 text-gray-600",
+};
+
 export default function Progress() {
   const [tab, setTab] = useState("activity");
+  const queryClient = useQueryClient();
+
+  // Run cleanup every time this page is opened
+  useEffect(() => {
+    runCleanup();
+    queryClient.invalidateQueries({ queryKey: ["completions"] });
+    queryClient.invalidateQueries({ queryKey: ["todos"] });
+  }, []);
 
   const { data: user } = useQuery({
     queryKey: ["me"],
@@ -29,7 +58,42 @@ export default function Progress() {
     queryFn: () => user?.email ? base44.entities.Sleep.filter({ created_by: user.email }, "-date", 100) : [],
   });
 
-  if (loadingTasks || loadingSleep || loadingCompletions) {
+  const { data: allTodos = [], isLoading: loadingTodos } = useQuery({
+    queryKey: ["todos", user?.email],
+    queryFn: () => user?.email ? base44.entities.TodoItem.filter({ created_by: user.email }) : [],
+  });
+
+  // Only show completions/todos from the last 7 days
+  const cutoffDate = format(subDays(new Date(), 7), "yyyy-MM-dd");
+  const cutoffISO = subDays(new Date(), 7).toISOString();
+
+  const recentCompletions = completions.filter(
+    c => (c.completed_date || "") >= cutoffDate
+  );
+
+  const completedTodos = allTodos.filter(t => {
+    if (!t.is_done) return false;
+    const ts = t.completed_at || t.created_at;
+    return !ts || ts >= cutoffISO;
+  });
+
+  const deleteCompletionMutation = useMutation({
+    mutationFn: (id) => base44.entities.TaskCompletion.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["completions"] });
+      toast.success("Habit marked as incomplete");
+    },
+  });
+
+  const uncheckTodoMutation = useMutation({
+    mutationFn: (id) => base44.entities.TodoItem.update(id, { is_done: false }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["todos"] });
+      toast.success("To-do returned to list");
+    },
+  });
+
+  if (loadingTasks || loadingSleep || loadingCompletions || loadingTodos) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
@@ -66,7 +130,101 @@ export default function Progress() {
         </button>
       </div>
 
-      {tab === "activity" && <TimeActivityChart tasks={tasks} completions={completions} />}
+      {tab === "activity" && (
+        <div className="space-y-8">
+          <TimeActivityChart tasks={tasks} completions={recentCompletions} />
+
+          {/* Completed section */}
+          <div>
+            <h2 className="text-lg font-bold text-slate-800 mb-4">Completed <span className="text-sm font-normal text-slate-400">— last 7 days</span></h2>
+
+            {/* Completed Habits / Tasks */}
+            <div className="mb-6">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
+                Completed Habits ({recentCompletions.length})
+              </p>
+              {recentCompletions.length === 0 ? (
+                <p className="text-sm text-slate-400 py-4 text-center">No completed habits yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {recentCompletions.map((c) => (
+                    <div
+                      key={c.id}
+                      className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-xl"
+                    >
+                      <button
+                        onClick={() => deleteCompletionMutation.mutate(c.id)}
+                        className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center flex-shrink-0 hover:bg-slate-200 transition-colors group"
+                        title="Mark as incomplete"
+                      >
+                        <Check className="w-3 h-3 text-white group-hover:hidden" />
+                        <RotateCcw className="w-3 h-3 text-slate-500 hidden group-hover:block" />
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-700">{c.task_name}</p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-xs text-slate-400">{c.completed_date}</p>
+                        {c.completed_at && (
+                          <p className="text-xs text-slate-400">{c.completed_at}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Completed To-Dos */}
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
+                Completed To-Dos ({completedTodos.length})
+              </p>
+              {completedTodos.length === 0 ? (
+                <p className="text-sm text-slate-400 py-4 text-center">No completed to-dos yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {completedTodos.map((item) => {
+                    const pc = priorityConfig[item.priority] || priorityConfig.medium;
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-xl"
+                      >
+                        <button
+                          onClick={() => uncheckTodoMutation.mutate(item.id)}
+                          className="w-5 h-5 rounded-full bg-emerald-400 flex items-center justify-center flex-shrink-0 hover:bg-slate-200 transition-colors group"
+                          title="Return to list"
+                        >
+                          <Check className="w-3 h-3 text-white group-hover:hidden" />
+                          <RotateCcw className="w-3 h-3 text-slate-500 hidden group-hover:block" />
+                        </button>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-700 line-through">{item.name}</p>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <span className={cn("text-xs px-2 py-0.5 rounded-full border", pc.bg)}>
+                              <Flag className="w-2.5 h-2.5 inline mr-1" />{pc.label}
+                            </span>
+                            {item.category && (
+                              <span className={cn("text-xs px-2 py-0.5 rounded-full capitalize", categoryColors[item.category])}>
+                                {item.category}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {item.due_date && (
+                          <p className="text-xs text-slate-400 flex-shrink-0">Due {item.due_date}</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {tab === "sleep" && <SleepChart sleepData={sleep} />}
     </div>
   );

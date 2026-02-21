@@ -1,63 +1,51 @@
 import React, { useEffect, useState } from "react";
-import { base44 } from "@/api/base44Client";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { createPageUrl } from "./utils";
-import { LayoutDashboard, MessageCircle, BarChart3, ListChecks, CalendarDays, Timer, Loader2, LogOut } from "lucide-react";
+import { LayoutDashboard, MessageCircle, BarChart3, CalendarDays, Timer, User, DollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
 import FloatingChatBubble from "@/components/chat/FloatingChatBubble";
+import { useAuth } from "@/lib/AuthContext";
+import { checkReminders, getUnreadCount, clearUnread } from "@/lib/reminderEngine";
 
 const navItems = [
   { name: "Chat", icon: MessageCircle, page: "Chat" },
   { name: "Dashboard", icon: LayoutDashboard, page: "Dashboard" },
   { name: "Calendar", icon: CalendarDays, page: "Calendar" },
-  { name: "To Do", icon: ListChecks, page: "Habits" },
   { name: "Progress", icon: BarChart3, page: "Progress" },
+  { name: "Financials", icon: DollarSign, page: "Financials" },
   { name: "Pomodoro", icon: Timer, page: "Pomodoro" },
 ];
 
 export default function Layout({ children, currentPageName }) {
-  const [me, setMe] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const [unread, setUnread] = useState(getUnreadCount);
 
+  // Run reminder check every 30 s
   useEffect(() => {
-    async function checkAuth() {
-      try {
-        const user = await base44.auth.me();
-        setMe(user);
-        
-        // Check if user has completed onboarding
-        const profiles = await base44.entities.UserProfile.filter({ created_by: user.email });
-        if (profiles.length === 0 && currentPageName !== "Onboarding") {
-          window.location.href = createPageUrl("Onboarding");
-          return;
-        }
-      } catch (error) {
-        // User not authenticated, redirect to login
-        base44.auth.redirectToLogin();
-      } finally {
-        setLoading(false);
-      }
+    checkReminders(); // check immediately on mount
+    const interval = setInterval(checkReminders, 30_000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // React to unread count changes fired by the engine
+  useEffect(() => {
+    const handler = (e) => setUnread(e.detail?.count ?? getUnreadCount());
+    window.addEventListener('unread-changed', handler);
+    return () => window.removeEventListener('unread-changed', handler);
+  }, []);
+
+  // Auto-clear when user is on Chat page
+  useEffect(() => {
+    if (currentPageName === 'Chat') {
+      clearUnread();
+      setUnread(0);
     }
-    checkAuth();
   }, [currentPageName]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
-          <p className="text-slate-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <FloatingChatBubble currentPageName={currentPageName} />
-      
+
       {/* Top nav */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 flex items-center justify-between h-16">
@@ -71,12 +59,13 @@ export default function Layout({ children, currentPageName }) {
           <nav className="flex items-center gap-1">
             {navItems.map(item => {
               const isActive = currentPageName === item.page;
+              const showBadge = item.page === 'Chat' && !isActive && unread > 0;
               return (
                 <Link
                   key={item.page}
                   to={createPageUrl(item.page)}
                   className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all",
+                    "relative flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all",
                     isActive
                       ? "bg-indigo-50 text-indigo-700"
                       : "text-slate-500 hover:text-slate-700 hover:bg-slate-100"
@@ -84,24 +73,39 @@ export default function Layout({ children, currentPageName }) {
                 >
                   <item.icon className="w-4 h-4" />
                   <span className="hidden sm:inline">{item.name}</span>
+                  {showBadge && (
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-violet-500 text-white text-[10px] font-bold flex items-center justify-center px-1 shadow-sm">
+                      {unread > 99 ? '99+' : unread}
+                    </span>
+                  )}
                 </Link>
               );
             })}
             <Link
               to={createPageUrl("Settings")}
               className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-all"
-              title="Settings"
             >
               <span className="hidden sm:inline">Settings</span>
             </Link>
-            <button
-              onClick={() => base44.auth.logout()}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-all"
-              title="Logout"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Logout</span>
-            </button>
+
+            {user && (
+              <Link
+                to={createPageUrl("Settings")}
+                className="ml-1 pl-2 border-l border-slate-200 flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-slate-100 transition-all"
+                title="Settings"
+              >
+                {user.picture ? (
+                  <img src={user.picture} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                    <User className="w-4 h-4 text-indigo-600" />
+                  </div>
+                )}
+                <span className="hidden sm:block text-xs font-medium text-slate-600 max-w-[90px] truncate">
+                  {user.full_name || user.email}
+                </span>
+              </Link>
+            )}
           </nav>
         </div>
       </header>

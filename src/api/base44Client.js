@@ -1,14 +1,4 @@
-import { createClient } from '@base44/sdk';
-import { appParams } from '@/lib/app-params';
+import { localDB } from './localDB';
 
-const { appId, token, functionsVersion, appBaseUrl } = appParams;
-
-//Create a client with authentication required
-export const base44 = createClient({
-  appId,
-  token,
-  functionsVersion,
-  serverUrl: '',
-  requiresAuth: false,
-  appBaseUrl
-});
+// Local development mode — all data stored in localStorage
+export const base44 = localDB;

@@ -1,8 +1,29 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { format, isSameDay } from "date-fns";
 import { CheckCircle2, Circle, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 const HOURS = Array.from({ length: 18 }, (_, i) => i + 6); // 6am–11pm
+
+function getNowInTimezone(timezone) {
+  try {
+    const now = new Date();
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false,
+    }).formatToParts(now);
+    let h = parseInt(parts.find(p => p.type === 'hour')?.value ?? '');
+    let m = parseInt(parts.find(p => p.type === 'minute')?.value ?? '');
+    if (isNaN(h)) h = new Date().getHours();
+    if (isNaN(m)) m = new Date().getMinutes();
+    if (h === 24) h = 0;
+    return { hour: h, minute: m };
+  } catch {
+    return { hour: new Date().getHours(), minute: new Date().getMinutes() };
+  }
+}
 const SLOT_HEIGHT = 64; // px per hour
 const MIN_HEIGHT = SLOT_HEIGHT / 4; // 15 min minimum
 const SNAP = SLOT_HEIGHT / 4; // snap to 15 min
@@ -121,11 +142,12 @@ function clampResizeNoOverlap(newTop, newHeight, taskId, allTimedCards) {
   return [top, height];
 }
 
-function EventCard({ card, done, onToggle, onRemove, onMoveEnd, onResizeEnd, allCards }) {
+function EventCard({ card, onToggle, onRemove, onMoveEnd, onResizeEnd, allCards }) {
   const colorClass = CATEGORY_COLORS[card.task.category] || CATEGORY_COLORS.other;
-  const dragState = useRef(null); // { type: 'move'|'resize-top'|'resize-bottom', startY, startTop, startHeight }
+  const dragState = useRef(null);
   const [liveTop, setLiveTop] = useState(null);
   const [liveHeight, setLiveHeight] = useState(null);
+  const [completing, setCompleting] = useState(false);
 
   const displayTop = liveTop !== null ? liveTop : card.top;
   const displayHeight = liveHeight !== null ? liveHeight : card.height;
@@ -180,13 +202,24 @@ function EventCard({ card, done, onToggle, onRemove, onMoveEnd, onResizeEnd, all
     }
   }, [liveTop, liveHeight, card.top, card.height, card.id, onMoveEnd, onResizeEnd]);
 
+  const handleToggle = (e) => {
+    e.stopPropagation();
+    if (completing) return;
+    setCompleting(true);
+    setTimeout(() => onToggle(card.task), 750);
+  };
+
   return (
-    <div
+    <motion.div
       style={{ top: displayTop, height: displayHeight, left: LEFT_GUTTER + 4, right: 4, position: "absolute", zIndex: 10 }}
-      className={`rounded-xl border-l-4 shadow-sm select-none overflow-visible ${colorClass} ${done ? "opacity-50" : ""}`}
+      className={`rounded-xl border-l-4 shadow-sm select-none overflow-visible ${colorClass}`}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.3 } }}
+      transition={{ duration: 0.2 }}
     >
       {/* Top resize handle */}
       <div
@@ -204,14 +237,14 @@ function EventCard({ card, done, onToggle, onRemove, onMoveEnd, onResizeEnd, all
         <button
           className="mt-0.5 flex-shrink-0 z-20 relative"
           onPointerDown={(e) => e.stopPropagation()}
-          onClick={() => onToggle(card.task)}
+          onClick={handleToggle}
         >
-          {done
-            ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+          {completing
+            ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
             : <Circle className="w-3.5 h-3.5 opacity-60" />}
         </button>
         <div className="flex-1 min-w-0 pointer-events-none">
-          <span className={`text-xs font-semibold leading-tight ${done ? "line-through" : ""}`}>
+          <span className={`text-xs font-semibold leading-tight ${completing ? "line-through opacity-50" : ""}`}>
             {card.task.name}
           </span>
           <p className="text-xs opacity-60 mt-0.5">{topToTime(displayTop)}</p>
@@ -232,15 +265,15 @@ function EventCard({ card, done, onToggle, onRemove, onMoveEnd, onResizeEnd, all
       >
         <div className="w-8 h-0.5 rounded-full bg-current opacity-20 group-hover:opacity-50 transition-opacity" />
       </div>
-    </div>
+    </motion.div>
   );
 }
 
-export default function DayView({ date, tasks, completions, onToggle, onDropTask, onRemoveTask }) {
+export default function DayView({ date, tasks, completions, onToggle, onDropTask, onRemoveTask, timezone }) {
   const dateStr = format(date, "yyyy-MM-dd");
   const isToday = isSameDay(date, new Date());
-  const nowHour = new Date().getHours();
-  const nowMin = new Date().getMinutes();
+  const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York";
+  const { hour: nowHour, minute: nowMin } = getNowInTimezone(tz);
   const gridRef = useRef(null);
   const [dragOver, setDragOver] = useState(null);
   // localTimes: { taskId: { time: "HH:MM", durationMin: number } }
@@ -262,15 +295,17 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
     return !isValidTime(time);
   });
 
-  // Build card descriptors for overlap detection
-  const timedCards = timedTasks.map((t) => {
-    const ld = localData[t.id];
-    const time = (ld?.time && isValidTime(ld.time)) ? ld.time : t.scheduled_time;
-    const top = isValidTime(time) ? timeToTop(time) : 0;
-    const durationMin = ld?.durationMin ?? 60;
-    const height = Math.max(MIN_HEIGHT, minutesToTop(durationMin));
-    return { id: t.id, task: t, top, height };
-  });
+  // Build card descriptors — exclude completed tasks so they disappear when checked off
+  const timedCards = timedTasks
+    .filter((t) => !completedIds.has(t.id))
+    .map((t) => {
+      const ld = localData[t.id];
+      const time = (ld?.time && isValidTime(ld.time)) ? ld.time : t.scheduled_time;
+      const top = isValidTime(time) ? timeToTop(time) : 0;
+      const durationMin = ld?.durationMin ?? 60;
+      const height = Math.max(MIN_HEIGHT, minutesToTop(durationMin));
+      return { id: t.id, task: t, top, height };
+    });
 
   const handleMoveEnd = useCallback((taskId, finalTop) => {
     const newTime = topToTime(finalTop);
@@ -307,8 +342,20 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
     const sidebarTaskId = e.dataTransfer.getData("taskId");
     if (!sidebarTaskId) return;
     const yPx = getGridTop(e.clientY);
-    const snappedTop = snap(yPx);
-    const newTime = topToTime(Math.max(0, snappedTop));
+    let targetTop = snap(yPx);
+    const defaultDuration = minutesToTop(60);
+
+    // Find next non-overlapping slot, pushing down if needed
+    const otherCards = timedCards.filter(c => c.id !== sidebarTaskId);
+    for (let attempt = 0; attempt < 48; attempt++) {
+      const bottom = targetTop + defaultDuration;
+      const overlaps = otherCards.some(c => targetTop < c.top + c.height && bottom > c.top);
+      if (!overlaps) break;
+      // Push down by one snap unit (15 min)
+      targetTop = Math.min(TOTAL_HEIGHT - defaultDuration, targetTop + SNAP);
+    }
+
+    const newTime = topToTime(Math.max(0, targetTop));
     setLocalData(prev => ({ ...prev, [sidebarTaskId]: { time: newTime, durationMin: 60 } }));
     onDropTask?.(sidebarTaskId, newTime);
     setDragOver(null);
@@ -359,21 +406,19 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
         })}
 
         {/* Timed event cards */}
-        {timedCards.map((card) => {
-          const done = completedIds.has(card.id);
-          return (
+        <AnimatePresence>
+          {timedCards.map((card) => (
             <EventCard
               key={card.id}
               card={card}
-              done={done}
               allCards={timedCards}
               onToggle={(t) => onToggle(t, date)}
               onRemove={handleRemoveTask}
               onMoveEnd={handleMoveEnd}
               onResizeEnd={handleResizeEnd}
             />
-          );
-        })}
+          ))}
+        </AnimatePresence>
 
         {/* Current time indicator */}
         {isToday && nowTop >= 0 && (

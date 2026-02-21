@@ -13,7 +13,7 @@ const categoryConfig = {
   other: { icon: MoreHorizontal, color: "text-slate-500", bg: "bg-slate-50", border: "border-slate-200" },
 };
 
-export default function TaskCard({ task, isCompleted, onToggle }) {
+export default function TaskCard({ task, isCompleted, onToggle, isUpcoming }) {
   const config = categoryConfig[task.category] || categoryConfig.other;
   const Icon = config.icon;
 
@@ -27,6 +27,8 @@ export default function TaskCard({ task, isCompleted, onToggle }) {
         "group relative flex items-center gap-4 p-4 rounded-2xl border transition-all duration-300 cursor-pointer",
         isCompleted
           ? "bg-slate-50/60 border-slate-200"
+          : isUpcoming
+          ? "bg-amber-50 border-amber-300 shadow-md shadow-amber-100/60"
           : "bg-white border-slate-200 hover:border-indigo-300 hover:shadow-md hover:shadow-indigo-100/50"
       )}
       onClick={() => onToggle(task)}
@@ -68,14 +70,19 @@ export default function TaskCard({ task, isCompleted, onToggle }) {
         )}>
           {task.name}
         </p>
-        <div className="flex items-center gap-3 mt-1">
+        <div className="flex items-center gap-3 mt-1 flex-wrap">
           {task.scheduled_time && (
-            <span className="flex items-center gap-1 text-xs text-slate-400">
+            <span className={cn("flex items-center gap-1 text-xs", isUpcoming ? "text-amber-600 font-medium" : "text-slate-400")}>
               <Clock className="w-3 h-3" />
               {task.scheduled_time}
             </span>
           )}
-
+          {isUpcoming && (
+            <span className="flex items-center gap-1 text-xs font-semibold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse inline-block" />
+              Starting soon
+            </span>
+          )}
           <span className={cn("text-xs capitalize", config.color)}>{task.frequency}</span>
         </div>
       </div>
