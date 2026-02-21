@@ -95,13 +95,12 @@ export default function Calendar() {
     },
   });
 
-  // For day view, filter tasks for the current date only
-  const activeTasks = tasks.filter((t) => {
-    if (t.is_active === false) return false;
-    if (view === "week") return true;
-    
-    const dateStr = format(currentDate, "yyyy-MM-dd");
-    const dow = format(currentDate, "EEEE").toLowerCase();
+  const activeTasks = tasks.filter((t) => t.is_active !== false);
+
+  // Tasks applicable to the current day view (for sidebar: untimed only)
+  const taskAppliesOnDate = (t, date) => {
+    const dateStr = format(date, "yyyy-MM-dd");
+    const dow = format(date, "EEEE").toLowerCase();
     const isWeekday = !["saturday", "sunday"].includes(dow);
     if (t.frequency === "once") return t.scheduled_date === dateStr;
     if (t.frequency === "daily") return true;
@@ -109,7 +108,12 @@ export default function Calendar() {
     if (t.frequency === "weekends") return !isWeekday;
     if (t.frequency === dow) return true;
     return false;
-  });
+  };
+
+  // Sidebar shows only untimed tasks that apply today (so they can be dragged to a time slot)
+  const sidebarTasks = activeTasks.filter(
+    (t) => !t.scheduled_time && taskAppliesOnDate(t, currentDate)
+  );
 
   const navigate = (dir) => {
     const d = new Date(currentDate);
