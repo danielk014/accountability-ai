@@ -90,7 +90,7 @@ export default function Calendar() {
   // For day view, filter tasks for the current date only
   const activeTasks = tasks.filter((t) => {
     if (t.is_active === false) return false;
-    if (view === "week") return true; // Week view handles its own filtering
+    if (view === "week") return true;
     
     const dateStr = format(currentDate, "yyyy-MM-dd");
     const dow = format(currentDate, "EEEE").toLowerCase();
