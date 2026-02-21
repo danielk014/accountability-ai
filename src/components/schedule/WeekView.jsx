@@ -92,8 +92,8 @@ function TimedTaskBlock({ task, dayStr, localData, completed, color, onToggle, o
      const { type, startY, startX, startTop, startHeight, dayIdx } = dragStateRef.current;
      const dy = e.clientY - startY;
      const dx = e.clientX - startX;
-     
-     // Determine which day we're over based on x position
+
+     // Determine which day we're over based on x position (apply to all operation types)
      let newDayIdx = dayIdx;
      if (dx < -80 && dayIdx > 0) newDayIdx--;
      if (dx > 80 && dayIdx < days.length - 1) newDayIdx++;
@@ -108,14 +108,14 @@ function TimedTaskBlock({ task, dayStr, localData, completed, color, onToggle, o
        const snappedHeight = snap(Math.max(MIN_HEIGHT, rawHeight));
        setLiveTop(startTop);
        setLiveHeight(snappedHeight);
-       setLiveDayIdx(dayIdx);
+       setLiveDayIdx(newDayIdx);
      } else if (type === "resize-top") {
        const rawTop = startTop + dy;
        const snappedTop = snap(rawTop);
        const newHeight = startHeight - (snappedTop - startTop);
        setLiveTop(Math.max(0, snappedTop));
        setLiveHeight(Math.max(MIN_HEIGHT, newHeight));
-       setLiveDayIdx(dayIdx);
+       setLiveDayIdx(newDayIdx);
      }
    }, [days]);
 
