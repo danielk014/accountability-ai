@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus, Trash2, Pencil, Check, Send, Loader2,
-  Sparkles, FolderKanban, LayoutGrid, List,
+  Sparkles, FolderKanban,
   MessageCircle, ChevronDown, CheckSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -737,8 +737,6 @@ export default function Projects() {
     return () => { unsubProj(); unsubTask(); };
   }, []);
 
-  const [view, setView]                         = useState("grid");
-  const [typeFilter, setTypeFilter]             = useState("all");
   const [statusFilter, setStatusFilter]         = useState("all");
   const [sortBy, setSortBy]                     = useState("created");
   const [showProjectModal, setShowProjectModal] = useState(false);
@@ -758,7 +756,6 @@ export default function Projects() {
 
   const visibleProjects = useMemo(() => {
     let result = projects;
-    if (typeFilter !== "all")   result = result.filter(p => p.type === typeFilter);
     if (statusFilter !== "all") result = result.filter(p => p.status === statusFilter);
     if (sortBy === "name") {
       result = [...result].sort((a, b) => a.name.localeCompare(b.name));
@@ -828,7 +825,6 @@ export default function Projects() {
     }
   };
 
-  const TYPE_FILTERS = ["all", "business", "school", "personal", "goal"];
   const SORT_OPTIONS = [
     { value: "created",  label: "Newest" },
     { value: "deadline", label: "Deadline" },
@@ -847,23 +843,6 @@ export default function Projects() {
           <p className="text-slate-400 text-sm mt-1">Track your ventures, goals, and long-term work</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Grid / List toggle */}
-          <div className="flex items-center bg-slate-100 rounded-xl p-1">
-            <button
-              onClick={() => setView("grid")}
-              className={cn("p-2 rounded-lg transition-all", view === "grid" ? "bg-white shadow text-indigo-600" : "text-slate-400 hover:text-slate-600")}
-              title="Grid view"
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setView("list")}
-              className={cn("p-2 rounded-lg transition-all", view === "list" ? "bg-white shadow text-indigo-600" : "text-slate-400 hover:text-slate-600")}
-              title="List view"
-            >
-              <List className="w-4 h-4" />
-            </button>
-          </div>
           <Button
             onClick={() => { setEditingProject(null); setShowProjectModal(true); }}
             className="rounded-xl bg-indigo-600 hover:bg-indigo-700"
@@ -876,21 +855,6 @@ export default function Projects() {
 
       {/* Filter bar */}
       <div className="flex flex-wrap gap-2 items-center mb-6">
-        <div className="flex gap-1 bg-slate-100 rounded-xl p-1 flex-wrap">
-          {TYPE_FILTERS.map(f => (
-            <button
-              key={f}
-              onClick={() => setTypeFilter(f)}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-medium transition-all capitalize",
-                typeFilter === f ? "bg-white shadow text-indigo-700" : "text-slate-500 hover:text-slate-700"
-              )}
-            >
-              {f === "all" ? "All types" : TYPE_CONFIG[f]?.label ?? f}
-            </button>
-          ))}
-        </div>
-
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="rounded-xl text-xs w-36 h-9">
             <SelectValue />
@@ -932,11 +896,11 @@ export default function Projects() {
           </div>
           <p className="text-lg font-semibold text-slate-700">No projects yet</p>
           <p className="text-sm text-slate-400 mt-1 mb-6">
-            {typeFilter !== "all" || statusFilter !== "all"
+            {statusFilter !== "all"
               ? "No projects match your current filters."
               : "Create your first project to start tracking your work."}
           </p>
-          {typeFilter === "all" && statusFilter === "all" && (
+          {statusFilter === "all" && (
             <Button
               onClick={() => { setEditingProject(null); setShowProjectModal(true); }}
               className="rounded-xl bg-indigo-600 hover:bg-indigo-700"
@@ -948,39 +912,12 @@ export default function Projects() {
         </motion.div>
       )}
 
-      {/* Grid view */}
-      {view === "grid" && visibleProjects.length > 0 && (
+      {/* Grid */}
+      {visibleProjects.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <AnimatePresence>
             {visibleProjects.map(project => (
               <ProjectCard
-                key={project.id}
-                project={project}
-                tasks={tasksByProject[project.id] || []}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                onOpenDetail={setDetailProject}
-              />
-            ))}
-          </AnimatePresence>
-        </div>
-      )}
-
-      {/* List view */}
-      {view === "list" && visibleProjects.length > 0 && (
-        <div className="space-y-2">
-          <div className="hidden lg:flex items-center gap-4 px-5 py-2 text-xs font-medium text-slate-400 uppercase tracking-wide">
-            <div className="w-3" />
-            <div className="flex-1">Name</div>
-            <div className="w-20">Type</div>
-            <div className="w-20">Status</div>
-            <div className="w-28">Progress</div>
-            <div className="w-20 text-right">Deadline</div>
-            <div className="w-16" />
-          </div>
-          <AnimatePresence>
-            {visibleProjects.map(project => (
-              <ProjectRow
                 key={project.id}
                 project={project}
                 tasks={tasksByProject[project.id] || []}
