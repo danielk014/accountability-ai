@@ -42,9 +42,21 @@ function topToTime(top) {
 }
 
 function timeToTop(timeStr) {
-  const [h, m] = timeStr.split(":").map(Number);
-  return ((h - 6) + m / 60) * SLOT_HEIGHT;
-}
+   const [h, m] = timeStr.split(":").map(Number);
+   return ((h - 6) + m / 60) * SLOT_HEIGHT;
+ }
+
+function topToMinutes(top) {
+   return Math.round((top / SLOT_HEIGHT) * 60);
+ }
+
+function minutesToTop(min) {
+   return (min / 60) * SLOT_HEIGHT;
+ }
+
+function snap(val) {
+   return Math.round(val / SNAP) * SNAP;
+ }
 
 export default function WeekView({ date, tasks, completions, onToggle, onDropTask, onAddTask }) {
   const weekStart = startOfWeek(date, { weekStartsOn: 1 });
