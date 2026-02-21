@@ -55,6 +55,7 @@ import Onboarding from './pages/Onboarding';
 import Progress from './pages/Progress';
 import Settings from './pages/Settings';
 import Calendar from './pages/Calendar';
+import Pomodoro from './pages/Pomodoro';
 import __Layout from './Layout.jsx';
 
 
@@ -67,6 +68,7 @@ export const PAGES = {
     "Progress": Progress,
     "Settings": Settings,
     "Calendar": Calendar,
+    "Pomodoro": Pomodoro,
 }
 
 export const pagesConfig = {
