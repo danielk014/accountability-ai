@@ -554,11 +554,7 @@ function ProjectDetail({ project, tasks, onBack, queryClient, onEdit, onDelete }
           <ArrowLeft className="w-4 h-4" />
         </button>
 
-        {/* Logo in project color */}
-        <div className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden"
-          style={{ backgroundColor: project.color || PROJECT_COLORS[0] }}>
-          <img src={APP_LOGO} alt="Logo" className="w-7 h-7 object-contain" />
-        </div>
+        <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: project.color || PROJECT_COLORS[0] }} />
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
