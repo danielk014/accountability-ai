@@ -143,8 +143,8 @@ function PeopleSection({ items, onAdd, onDelete, onUpdate }) {
                   className="w-full text-sm rounded-xl border border-pink-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-300 bg-white" />
                 <input value={editForm.relationship || ""} onChange={e => setEditForm(f => ({ ...f, relationship: e.target.value }))} placeholder="Relationship"
                   className="w-full text-sm rounded-xl border border-pink-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-300 bg-white" />
-                <input value={editForm.birthday || ""} onChange={e => setEditForm(f => ({ ...f, birthday: e.target.value }))} placeholder="Birthday"
-                  className="w-full text-sm rounded-xl border border-pink-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-300 bg-white" />
+                <input type="date" value={editForm.birthday || ""} onChange={e => setEditForm(f => ({ ...f, birthday: e.target.value }))}
+                    className="w-full text-sm rounded-xl border border-pink-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-300 bg-white" />
                 <input value={editForm.interests || ""} onChange={e => setEditForm(f => ({ ...f, interests: e.target.value }))} placeholder="Interests"
                   className="w-full text-sm rounded-xl border border-pink-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-300 bg-white" />
                 <textarea value={editForm.notes || ""} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} placeholder="Extra notes" rows={2}
@@ -165,7 +165,7 @@ function PeopleSection({ items, onAdd, onDelete, onUpdate }) {
                     <span className="text-sm font-semibold text-slate-800">{person.name}</span>
                     {person.relationship && <span className="text-xs bg-pink-100 text-pink-600 rounded-full px-2 py-0.5">{person.relationship}</span>}
                   </div>
-                  {person.birthday && <p className="text-xs text-slate-500 mt-0.5">🎂 {person.birthday}</p>}
+                  {person.birthday && <p className="text-xs text-slate-500 mt-0.5">🎂 {new Date(person.birthday + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>}
                   {person.interests && <p className="text-xs text-slate-500 mt-0.5">⭐ {person.interests}</p>}
                   {person.notes && <p className="text-xs text-slate-500 mt-0.5 italic">"{person.notes}"</p>}
                 </div>
@@ -189,7 +189,7 @@ function PeopleSection({ items, onAdd, onDelete, onUpdate }) {
                 className="w-full text-sm rounded-xl border border-pink-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-300 bg-white" />
               <input value={form.relationship} onChange={e => setForm(f => ({ ...f, relationship: e.target.value }))} placeholder="Relationship (e.g. best friend, mom)"
                 className="w-full text-sm rounded-xl border border-pink-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-300 bg-white" />
-              <input value={form.birthday} onChange={e => setForm(f => ({ ...f, birthday: e.target.value }))} placeholder="Birthday"
+              <input type="date" value={form.birthday} onChange={e => setForm(f => ({ ...f, birthday: e.target.value }))}
                 className="w-full text-sm rounded-xl border border-pink-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-300 bg-white" />
               <input value={form.interests} onChange={e => setForm(f => ({ ...f, interests: e.target.value }))} placeholder="Interests"
                 className="w-full text-sm rounded-xl border border-pink-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-300 bg-white" />

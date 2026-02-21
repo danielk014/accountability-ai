@@ -25,7 +25,7 @@ export default function PersonForm({ onSave, onCancel }) {
         className="w-full text-xs rounded-lg border border-pink-200 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-pink-300 bg-white" />
       <input value={relationship} onChange={e => setRelationship(e.target.value)} placeholder="Relationship (e.g. best friend, partner, mom)"
         className="w-full text-xs rounded-lg border border-pink-200 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-pink-300 bg-white" />
-      <input value={birthday} onChange={e => setBirthday(e.target.value)} placeholder="Birthday (e.g. March 15, 1995)"
+      <input type="date" value={birthday} onChange={e => setBirthday(e.target.value)}
         className="w-full text-xs rounded-lg border border-pink-200 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-pink-300 bg-white" />
       <input value={interests} onChange={e => setInterests(e.target.value)} placeholder="Interests (e.g. music, hiking, cooking)"
         className="w-full text-xs rounded-lg border border-pink-200 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-pink-300 bg-white" />
