@@ -134,17 +134,10 @@ export default function WeekView({ date, tasks, completions, onToggle, onDropTas
               </p>
               <div className="flex items-center justify-center gap-1 mt-0.5">
                 <p className={`text-base font-bold w-7 h-7 flex items-center justify-center rounded-full ${
-                  isToday ? "bg-indigo-600 text-white" : "text-slate-800"
-                }`}>
-                  {format(day, "d")}
-                </p>
-                <button
-                  onClick={() => onAddTask?.(dateStr)}
-                  className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-indigo-100 text-slate-400 hover:text-indigo-600 transition-colors"
-                  title={`Add task on ${format(day, "EEE d")}`}
-                >
-                  <Plus className="w-3 h-3" />
-                </button>
+                    isToday ? "bg-indigo-600 text-white" : "text-slate-800"
+                  }`}>
+                    {format(day, "d")}
+                  </p>
               </div>
             </div>
           );
