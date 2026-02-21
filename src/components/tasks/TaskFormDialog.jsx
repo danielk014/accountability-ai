@@ -154,7 +154,13 @@ export default function TaskFormDialog({ open, onOpenChange, onSubmit, task, def
             reminderTime={formData.reminder_time}
             reminderDays={formData.reminder_days}
             reminderType={formData.reminder_type}
-            onChange={(data) => setFormData({ ...formData, ...data })}
+            onChange={(data) => setFormData(prev => ({
+              ...prev,
+              reminder_enabled: data.reminderEnabled,
+              reminder_time: data.reminderTime,
+              reminder_days: data.reminderDays,
+              reminder_type: data.reminderType,
+            }))}
           />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl">
