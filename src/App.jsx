@@ -1,6 +1,7 @@
 import { Toaster } from "@/components/ui/toaster"
 import { runCleanup } from '@/api/localDB'
 import { QueryClientProvider } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import { queryClientInstance } from '@/lib/query-client'
 import NavigationTracker from '@/lib/NavigationTracker'
 import { pagesConfig } from './pages.config'
@@ -18,10 +19,12 @@ const LayoutWrapper = ({ children, currentPageName }) => Layout
   ? <Layout currentPageName={currentPageName}>{children}</Layout>
   : <>{children}</>;
 
-// Runs cleanup once on app load for the current user
+// Runs cleanup once per login session for the current user
 function CleanupRunner() {
   const { isAuthenticated } = useAuth();
-  if (isAuthenticated) runCleanup();
+  useEffect(() => {
+    if (isAuthenticated) runCleanup();
+  }, [isAuthenticated]);
   return null;
 }
 

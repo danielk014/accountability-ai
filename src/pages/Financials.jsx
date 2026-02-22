@@ -143,24 +143,152 @@ function DayPicker({ value, onChange, label = "Set date" }) {
   );
 }
 
-// ── Build financial context for AI ────────────────────────────────────────────
-function buildFinancialContext(fin) {
+// ── Build financial system prompt for AI ──────────────────────────────────────
+function buildFinancialSystemPrompt(fin) {
   const income = sum(fin.income_sources);
   const recurring = sum(fin.recurring_expenses);
   const wishlist = sum(fin.wishlist_expenses);
   const totalExpenses = recurring + wishlist;
   const savings = income - totalExpenses;
   const rate = income > 0 ? ((savings / income) * 100).toFixed(1) : 0;
+  const fmtItem = (i) => `${i.name}: $${fmt(i.amount)}${i.day ? ` (due ${ordinal(i.day)})` : ""}`;
 
-  const fmtItem = (i) => `${i.name}: $${fmt(i.amount)}${i.day ? ` (${i.day === "income" ? "received" : "due"} ${ordinal(i.day)})` : ""}`;
+  return `You are a sharp, no-nonsense financial advisor powered by Warren Buffett and Charlie Munger principles. Be direct, specific, and use the user's real numbers. You have tools to directly modify the user's financial data — use them immediately when asked.
 
-  return `## User's Financial Snapshot
+## User's Current Financial Snapshot
 Monthly Income: $${fmt(income)} (${fin.income_sources.map(fmtItem).join(", ") || "none"})
 Recurring Expenses: $${fmt(recurring)}/mo — ${fin.recurring_expenses.map(fmtItem).join(", ") || "none"}
-Optional/Wishlist: $${fmt(wishlist)}/mo — ${fin.wishlist_expenses.map(fmtItem).join(", ") || "none"}
-Total Expenses: $${fmt(totalExpenses)} | Monthly Savings: $${fmt(savings)} (${rate}% rate) | Annual Savings: $${fmt(savings * 12)}
+Wishlist/Optional: $${fmt(wishlist)}/mo — ${fin.wishlist_expenses.map(fmtItem).join(", ") || "none"}
+Monthly Savings: $${fmt(savings)} (${rate}% savings rate) | Annual Savings: $${fmt(savings * 12)}
 
-Apply Warren Buffett and Charlie Munger's principles: live below your means, avoid debt, think long-term, compound wealth. Use the user's real numbers. Be direct and specific.`;
+Current date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`;
+}
+
+// ── Financial AI tools ─────────────────────────────────────────────────────────
+const FINANCIAL_TOOLS = [
+  {
+    name: "add_income_source",
+    description: "Add a new income source to the user's financials.",
+    input_schema: {
+      type: "object",
+      properties: {
+        name:   { type: "string", description: "Name of the income source (e.g. 'Salary', 'Freelance')" },
+        amount: { type: "number", description: "Monthly amount in dollars" },
+        day:    { type: "number", description: "Day of month when received (1-31), optional" },
+      },
+      required: ["name", "amount"],
+    },
+  },
+  {
+    name: "add_expense",
+    description: "Add a new expense. Use category 'recurring' for essential monthly costs, 'wishlist' for optional/nice-to-have.",
+    input_schema: {
+      type: "object",
+      properties: {
+        name:     { type: "string", description: "Name of the expense (e.g. 'Dinner', 'Netflix')" },
+        amount:   { type: "number", description: "Monthly amount in dollars" },
+        category: { type: "string", enum: ["recurring", "wishlist"], description: "recurring = essential, wishlist = optional" },
+        day:      { type: "number", description: "Day of month when due (1-31), optional" },
+      },
+      required: ["name", "amount", "category"],
+    },
+  },
+  {
+    name: "delete_income_source",
+    description: "Delete an income source by name.",
+    input_schema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Name of the income source to delete (partial match)" },
+      },
+      required: ["name"],
+    },
+  },
+  {
+    name: "delete_expense",
+    description: "Delete an expense by name.",
+    input_schema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Name of the expense to delete (partial match)" },
+      },
+      required: ["name"],
+    },
+  },
+  {
+    name: "list_financials",
+    description: "List all current income sources and expenses.",
+    input_schema: { type: "object", properties: {} },
+  },
+];
+
+function executeFinancialTool(name, input, update) {
+  const fin = loadFin();
+  switch (name) {
+    case "add_income_source": {
+      const item = { id: uid(), name: input.name, amount: parseFloat(input.amount), day: input.day || null };
+      update({ income_sources: [...fin.income_sources, item] });
+      return { success: true, added: { name: item.name, amount: item.amount } };
+    }
+    case "add_expense": {
+      const item = { id: uid(), name: input.name, amount: parseFloat(input.amount), day: input.day || null };
+      const key = input.category === "wishlist" ? "wishlist_expenses" : "recurring_expenses";
+      update({ [key]: [...fin[key], item] });
+      return { success: true, added: { name: item.name, amount: item.amount, category: input.category } };
+    }
+    case "delete_income_source": {
+      const match = fin.income_sources.find(s => s.name.toLowerCase().includes(input.name.toLowerCase()));
+      if (!match) return { error: `No income source found matching "${input.name}"` };
+      update({ income_sources: fin.income_sources.filter(s => s.id !== match.id) });
+      return { success: true, deleted: match.name };
+    }
+    case "delete_expense": {
+      const match = [...fin.recurring_expenses, ...fin.wishlist_expenses].find(e => e.name.toLowerCase().includes(input.name.toLowerCase()));
+      if (!match) return { error: `No expense found matching "${input.name}"` };
+      update({
+        recurring_expenses: fin.recurring_expenses.filter(e => e.id !== match.id),
+        wishlist_expenses:  fin.wishlist_expenses.filter(e => e.id !== match.id),
+      });
+      return { success: true, deleted: match.name };
+    }
+    case "list_financials":
+      return { income_sources: fin.income_sources, recurring_expenses: fin.recurring_expenses, wishlist_expenses: fin.wishlist_expenses };
+    default:
+      return { error: `Unknown tool: ${name}` };
+  }
+}
+
+async function financialAgenticLoop(history, update) {
+  const systemPrompt = buildFinancialSystemPrompt(loadFin());
+  let messages = history.map(m => ({ role: m.role, content: m.content }));
+  for (let turn = 0; turn < 8; turn++) {
+    const response = await fetch('/api/claude', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-5',
+        max_tokens: 1024,
+        system: systemPrompt,
+        tools: FINANCIAL_TOOLS,
+        messages,
+      }),
+    });
+    if (!response.ok) throw new Error(`Claude API error ${response.status}: ${await response.text()}`);
+    const data = await response.json();
+    if (data.stop_reason !== 'tool_use') {
+      return data.content.find(b => b.type === 'text')?.text ?? '';
+    }
+    messages = [...messages, { role: 'assistant', content: data.content }];
+    const toolResults = [];
+    for (const block of data.content) {
+      if (block.type === 'tool_use') {
+        const result = executeFinancialTool(block.name, block.input, update);
+        toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: JSON.stringify(result) });
+      }
+    }
+    messages = [...messages, { role: 'user', content: toolResults }];
+  }
+  return "I ran into an issue. Please try again.";
 }
 
 // ── Inline add row ─────────────────────────────────────────────────────────────

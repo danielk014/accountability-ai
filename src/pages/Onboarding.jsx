@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, Check, Sparkles, Globe, Bot, CalendarDays, MessageCircle, Plus } from "lucide-react";
 import { createPageUrl } from "../utils";
+import { useNavigate } from "react-router-dom";
 
 const TIMEZONES = [
   "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
@@ -53,6 +54,7 @@ function StepHeader({ icon: Icon, color, title, subtitle }) {
 }
 
 export default function Onboarding() {
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -97,7 +99,7 @@ export default function Onboarding() {
         await base44.entities.UserProfile.create(data);
       }
 
-      window.location.href = createPageUrl("Dashboard");
+      navigate(createPageUrl("Dashboard"), { replace: true });
     } catch (err) {
       setError("Something went wrong saving your profile. Please try again.");
       console.error(err);

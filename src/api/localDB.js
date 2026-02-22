@@ -139,9 +139,23 @@ function createEntityStore(name) {
 // ─── Auth store ───────────────────────────────────────────────────────────────
 
 async function hashPassword(password) {
-  const data = new TextEncoder().encode(password);
-  const buf  = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  if (!window?.crypto?.subtle) {
+    // Fallback for non-secure contexts (HTTP, some browsers): use a deterministic
+    // pure-JS hash so registration and login always produce the same result.
+    let h = 0x811c9dc5;
+    for (let i = 0; i < password.length; i++) {
+      h ^= password.charCodeAt(i);
+      h = (h * 0x01000193) >>> 0;
+    }
+    return 'local_' + h.toString(16).padStart(8, '0');
+  }
+  try {
+    const data = new TextEncoder().encode(password);
+    const buf  = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  } catch (e) {
+    throw new Error('Password hashing failed. Please try again or use a different browser.');
+  }
 }
 
 function getUsers() {
@@ -168,9 +182,22 @@ const authStore = {
       created_at: new Date().toISOString(),
     };
     users.push(user);
-    saveUsers(users);
+    try {
+      saveUsers(users);
+    } catch (e) {
+      throw new Error('Could not save your account. Your browser may have storage restrictions (e.g. private/incognito mode or full storage). Please try again in a regular browser window.');
+    }
+    // Verify the account was actually persisted
+    const saved = getUsers();
+    if (!saved.find(u => u.id === user.id)) {
+      throw new Error('Account was not saved. Please ensure your browser allows localStorage and is not in private/incognito mode.');
+    }
     const session = { id: user.id, email: user.email, name: user.name };
-    localStorage.setItem('auth_session', JSON.stringify(session));
+    try {
+      localStorage.setItem('auth_session', JSON.stringify(session));
+    } catch (e) {
+      throw new Error('Could not save your session. Please check your browser storage settings.');
+    }
     return session;
   },
 
