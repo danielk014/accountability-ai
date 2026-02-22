@@ -231,13 +231,17 @@ const authStore = {
 
 export const localDB = {
   entities: {
-    Task:           createEntityStore('Task'),
-    TaskCompletion: createEntityStore('TaskCompletion'),
-    UserProfile:    createEntityStore('UserProfile'),
-    TodoItem:       createEntityStore('TodoItem'),
-    Sleep:          createEntityStore('Sleep'),
-    Project:        createEntityStore('Project'),
-    ProjectTask:    createEntityStore('ProjectTask'),
+    Task:                 createEntityStore('Task'),
+    TaskCompletion:       createEntityStore('TaskCompletion'),
+    UserProfile:          createEntityStore('UserProfile'),
+    TodoItem:             createEntityStore('TodoItem'),
+    Sleep:                createEntityStore('Sleep'),
+    Project:              createEntityStore('Project'),
+    ProjectTask:          createEntityStore('ProjectTask'),
+    HomeworkChapter:      createEntityStore('HomeworkChapter'),
+    ChapterSummaryEntry:  createEntityStore('ChapterSummaryEntry'),
+    Flashcard:            createEntityStore('Flashcard'),
+    LearningObjective:    createEntityStore('LearningObjective'),
   },
   auth: authStore,
 };
