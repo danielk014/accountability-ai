@@ -4,8 +4,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Plus, Trash2, Send, Loader2, Sparkles,
-  Check, ChevronRight, FileText, CreditCard, Target,
-  BookOpen, Pencil, RotateCcw, X, GraduationCap,
+  Check, ChevronRight, ChevronLeft, FileText, CreditCard, Target,
+  BookOpen, Pencil, RotateCcw, X, GraduationCap, Paperclip,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -329,6 +329,24 @@ function ChapterSectionsView({ chapter, onBack, onOpenSection }) {
 
 // ─── SummaryView ──────────────────────────────────────────────────────────────
 
+const SUMMARY_AI_STORAGE = "accountable_summary_ai_";
+
+async function callSummaryAI(messages, systemPrompt) {
+  const response = await fetch("/api/claude", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-5",
+      max_tokens: 1500,
+      system: systemPrompt,
+      messages: messages.map(m => ({ role: m.role, content: m.content })),
+    }),
+  });
+  if (!response.ok) throw new Error(`API error ${response.status}`);
+  const data = await response.json();
+  return data.content?.find(b => b.type === "text")?.text ?? "";
+}
+
 function SummaryView({ chapter, onBack }) {
   const queryClient = useQueryClient();
 
@@ -345,26 +363,44 @@ function SummaryView({ chapter, onBack }) {
     return unsub;
   }, [chapter.id]);
 
-  const [text, setText] = useState("");
-  const [saving, setSaving] = useState(false);
-  const bottomRef = useRef(null);
-  const textRef = useRef(null);
+  // Panel mode: "write" | "ai"
+  const [panel, setPanel] = useState("write");
+
+  // Write mode state
+  const [writeText, setWriteText] = useState("");
+  const [saving, setSaving]       = useState(false);
+  const textRef    = useRef(null);
+  const entriesRef = useRef(null);
+
+  // AI chat state
+  const aiChatKey = `${SUMMARY_AI_STORAGE}${chapter.id}`;
+  const [aiMessages, setAiMessages] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(aiChatKey) || "[]"); } catch { return []; }
+  });
+  const [aiInput, setAiInput]     = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const aiBottomRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [entries]);
+    if (panel === "ai") setTimeout(() => aiBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+  }, [aiMessages, panel]);
 
-  const handleSubmit = async () => {
-    if (!text.trim() || saving) return;
+  useEffect(() => {
+    if (panel === "write") setTimeout(() => entriesRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+  }, [entries, panel]);
+
+  // ── Write mode ──────────────────────────────────────────────────────────────
+
+  const saveEntry = async (content) => {
+    if (!content.trim()) return;
     setSaving(true);
     try {
       await base44.entities.ChapterSummaryEntry.create({
         chapter_id: chapter.id,
-        content: text.trim(),
+        content: content.trim(),
       });
       queryClient.invalidateQueries({ queryKey: ["summaryEntries", chapter.id] });
-      setText("");
-      setTimeout(() => textRef.current?.focus(), 50);
     } catch {
       toast.error("Failed to save summary");
     } finally {
@@ -372,10 +408,109 @@ function SummaryView({ chapter, onBack }) {
     }
   };
 
+  const handleWriteSubmit = async () => {
+    if (!writeText.trim() || saving) return;
+    await saveEntry(writeText);
+    setWriteText("");
+    setTimeout(() => textRef.current?.focus(), 50);
+  };
+
   const deleteEntry = async (id) => {
     await base44.entities.ChapterSummaryEntry.delete(id);
     queryClient.invalidateQueries({ queryKey: ["summaryEntries", chapter.id] });
   };
+
+  // ── AI chat ─────────────────────────────────────────────────────────────────
+
+  const buildSystemPrompt = () => {
+    const savedText = entries.map(e => e.content).join("\n\n");
+    return `You are an AI study assistant helping a student write and improve a chapter summary for "${chapter.name}".
+
+${savedText ? `The student has already written the following summary:\n\n${savedText}\n\n` : "No summary has been written yet.\n\n"}Help them:
+- Expand, clarify, or improve their summary
+- Generate a new summary from notes or content they paste or upload
+- Answer questions about the chapter material
+- Suggest key points to include
+
+When you generate a paragraph of summary text that the student should save, wrap it in <SAVE>...</SAVE> tags so they can save it with one click. Keep responses concise and educational.`;
+  };
+
+  const sendAiMessage = async (content) => {
+    if (!content.trim() || aiLoading) return;
+    const userMsg = { role: "user", content: content.trim() };
+    const updated = [...aiMessages, userMsg];
+    setAiMessages(updated);
+    setAiInput("");
+    localStorage.setItem(aiChatKey, JSON.stringify(updated.slice(-60)));
+    setAiLoading(true);
+    try {
+      const reply = await callSummaryAI(updated, buildSystemPrompt());
+      const withReply = [...updated, { role: "assistant", content: reply }];
+      setAiMessages(withReply);
+      localStorage.setItem(aiChatKey, JSON.stringify(withReply.slice(-60)));
+    } catch {
+      toast.error("AI failed to respond. Please try again.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const deleteAiMessage = (index) => {
+    const updated = aiMessages.filter((_, i) => i !== index);
+    setAiMessages(updated);
+    localStorage.setItem(aiChatKey, JSON.stringify(updated));
+  };
+
+  // ── File upload ──────────────────────────────────────────────────────────────
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+
+    const maxSize = 500 * 1024; // 500 KB
+    if (file.size > maxSize) {
+      toast.error("File too large — please upload files under 500 KB");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const content = ev.target?.result;
+      if (!content || typeof content !== "string") {
+        toast.error("Could not read file. Make sure it's a plain text file.");
+        return;
+      }
+      // Switch to AI panel and send file content as message
+      setPanel("ai");
+      const truncated = content.length > 8000 ? content.slice(0, 8000) + "\n\n[File truncated at 8000 chars]" : content;
+      const prompt = `I've uploaded a file called "${file.name}". Please read its contents and generate a concise, well-structured summary I can save for my notes:\n\n---\n${truncated}\n---`;
+      await sendAiMessage(prompt);
+    };
+    reader.onerror = () => toast.error("Failed to read file");
+    reader.readAsText(file);
+  };
+
+  // Extract <SAVE>...</SAVE> blocks from AI message
+  const parseSaveBlocks = (text) => {
+    const parts = [];
+    const re = /<SAVE>([\s\S]*?)<\/SAVE>/g;
+    let last = 0, m;
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > last) parts.push({ type: "text", content: text.slice(last, m.index) });
+      parts.push({ type: "save", content: m[1].trim() });
+      last = m.index + m[0].length;
+    }
+    if (last < text.length) parts.push({ type: "text", content: text.slice(last) });
+    return parts;
+  };
+
+  const quickPrompts = [
+    "Summarize what I've written so far in bullet points",
+    "What are the key concepts I should include?",
+    "Help me expand my summary with more detail",
+    "Generate a concise summary I can save",
+  ];
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-50">
@@ -387,77 +522,238 @@ function SummaryView({ chapter, onBack }) {
         <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
           <FileText className="w-5 h-5 text-blue-500" />
         </div>
-        <div>
+        <div className="flex-1">
           <h2 className="text-base font-bold text-slate-800">Summary</h2>
           <p className="text-xs text-slate-400">{chapter.name}</p>
         </div>
+        {/* File upload */}
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          title="Upload a file to generate a summary with AI"
+          className="p-2 rounded-xl hover:bg-blue-50 text-slate-400 hover:text-blue-500 transition flex-shrink-0"
+        >
+          <Paperclip className="w-4 h-4" />
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".txt,.md,.csv,.json,.xml,.html,.htm,.rtf"
+          className="hidden"
+          onChange={handleFileUpload}
+        />
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-6">
-        <div className="max-w-2xl mx-auto space-y-4">
-          {entries.length === 0 ? (
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="text-center py-20">
-              <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-3">
-                <FileText className="w-7 h-7 text-blue-200" />
-              </div>
-              <p className="text-slate-500 font-medium">No summary yet</p>
-              <p className="text-sm text-slate-400 mt-1">Write your summary below and press send to save it</p>
-            </motion.div>
-          ) : (
-            entries.map(entry => (
-              <motion.div
-                key={entry.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 group"
-              >
-                <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{entry.content}</p>
-                <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-50">
-                  <span className="text-xs text-slate-300">
-                    {new Date(entry.created_at).toLocaleDateString("en-US", {
-                      month: "short", day: "numeric",
-                      hour: "2-digit", minute: "2-digit",
-                    })}
-                  </span>
-                  <button
-                    onClick={() => deleteEntry(entry.id)}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-400 transition"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </motion.div>
-            ))
-          )}
-          <div ref={bottomRef} />
-        </div>
-      </div>
-
-      {/* Input */}
-      <div className="bg-white border-t border-slate-100 px-6 py-4 flex-shrink-0">
-        <div className="max-w-2xl mx-auto flex gap-3 items-end">
-          <textarea
-            ref={textRef}
-            value={text}
-            onChange={e => setText(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSubmit();
-            }}
-            placeholder="Write your summary here… (Cmd+Enter or click send to save)"
-            rows={3}
-            className="flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 placeholder:text-slate-400"
-            style={{ minHeight: "80px", maxHeight: "220px" }}
-          />
-          <Button
-            onClick={handleSubmit}
-            disabled={!text.trim() || saving}
-            className="rounded-xl bg-blue-600 hover:bg-blue-700 px-4 self-end h-10"
+      {/* Panel toggle */}
+      <div className="flex bg-white border-b border-slate-100 flex-shrink-0">
+        {[["write", "✏️  Write"], ["ai", "✨  AI Assistant"]].map(([id, label]) => (
+          <button
+            key={id}
+            onClick={() => setPanel(id)}
+            className={cn(
+              "flex-1 py-2.5 text-sm font-medium transition-all",
+              panel === id
+                ? "text-blue-600 border-b-2 border-blue-600"
+                : "text-slate-400 hover:text-slate-600"
+            )}
           >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-          </Button>
-        </div>
+            {label}
+          </button>
+        ))}
       </div>
+
+      {/* ── Write panel ── */}
+      {panel === "write" && (
+        <>
+          <div className="flex-1 overflow-y-auto px-6 py-6">
+            <div className="max-w-2xl mx-auto space-y-4">
+              {entries.length === 0 ? (
+                <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="text-center py-20">
+                  <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-3">
+                    <FileText className="w-7 h-7 text-blue-200" />
+                  </div>
+                  <p className="text-slate-500 font-medium">No summary yet</p>
+                  <p className="text-sm text-slate-400 mt-1">Write below, or use AI Assistant to generate one</p>
+                </motion.div>
+              ) : (
+                entries.map(entry => (
+                  <motion.div
+                    key={entry.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 group"
+                  >
+                    <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{entry.content}</p>
+                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-50">
+                      <span className="text-xs text-slate-300">
+                        {new Date(entry.created_at).toLocaleDateString("en-US", {
+                          month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+                        })}
+                      </span>
+                      <button
+                        onClick={() => deleteEntry(entry.id)}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-400 transition"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </motion.div>
+                ))
+              )}
+              <div ref={entriesRef} />
+            </div>
+          </div>
+
+          <div className="bg-white border-t border-slate-100 px-6 py-4 flex-shrink-0">
+            <div className="max-w-2xl mx-auto flex gap-3 items-end">
+              <textarea
+                ref={textRef}
+                value={writeText}
+                onChange={e => setWriteText(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleWriteSubmit(); }}
+                placeholder="Write your summary here… (Cmd+Enter to save)"
+                rows={3}
+                className="flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 placeholder:text-slate-400"
+                style={{ minHeight: "80px", maxHeight: "220px" }}
+              />
+              <Button
+                onClick={handleWriteSubmit}
+                disabled={!writeText.trim() || saving}
+                className="rounded-xl bg-blue-600 hover:bg-blue-700 px-4 self-end h-10"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── AI Assistant panel ── */}
+      {panel === "ai" && (
+        <>
+          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+            {aiMessages.length === 0 ? (
+              <div className="space-y-3 pt-4">
+                <div className="text-center py-6">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-2">
+                    <Sparkles className="w-6 h-6 text-blue-400" />
+                  </div>
+                  <p className="text-sm font-medium text-slate-700">AI Summary Assistant</p>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    Ask me to generate a summary, expand your notes, or upload a file with the 📎 button
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 gap-2 max-w-lg mx-auto">
+                  {quickPrompts.map(q => (
+                    <button key={q} onClick={() => sendAiMessage(q)}
+                      className="text-left text-xs px-3 py-2.5 rounded-xl border border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-slate-600 hover:text-blue-700 transition bg-white">
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              aiMessages.map((msg, i) => (
+                <div key={i} className={cn("flex gap-2", msg.role === "user" ? "justify-end" : "justify-start")}>
+                  {msg.role === "assistant" && (
+                    <div className="w-7 h-7 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0 mt-1">
+                      <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                    </div>
+                  )}
+                  <div className={cn(
+                    "max-w-[85%] rounded-2xl text-sm leading-relaxed",
+                    msg.role === "user"
+                      ? "bg-blue-600 text-white rounded-tr-sm px-3 py-2.5 whitespace-pre-wrap"
+                      : "bg-white text-slate-800 rounded-tl-sm shadow-sm border border-slate-100 overflow-hidden"
+                  )}>
+                    {msg.role === "assistant" ? (
+                      <div className="p-3 space-y-2">
+                        {parseSaveBlocks(msg.content).map((part, pi) =>
+                          part.type === "text" ? (
+                            <p key={pi} className="whitespace-pre-wrap text-slate-800 leading-relaxed">{part.content}</p>
+                          ) : (
+                            <div key={pi} className="bg-blue-50 border border-blue-200 rounded-xl p-3 space-y-2">
+                              <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">Suggested summary</p>
+                              <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{part.content}</p>
+                              <button
+                                onClick={async () => {
+                                  await saveEntry(part.content);
+                                  toast.success("Saved to summary!");
+                                }}
+                                className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-800 transition"
+                              >
+                                <Check className="w-3.5 h-3.5" /> Save to summary
+                              </button>
+                            </div>
+                          )
+                        )}
+                        <button
+                          onClick={() => deleteAiMessage(i)}
+                          className="text-xs text-slate-300 hover:text-red-400 transition mt-1"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    ) : (
+                      msg.content
+                    )}
+                  </div>
+                  {msg.role === "user" && (
+                    <button
+                      onClick={() => deleteAiMessage(i)}
+                      className="self-end mb-1 text-slate-300 hover:text-red-400 transition opacity-0 group-hover:opacity-100"
+                    />
+                  )}
+                </div>
+              ))
+            )}
+
+            {aiLoading && (
+              <div className="flex gap-2">
+                <div className="w-7 h-7 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                </div>
+                <div className="bg-white rounded-2xl rounded-tl-sm px-3 py-3 shadow-sm border border-slate-100">
+                  <div className="flex gap-1.5">
+                    {[0, 150, 300].map(d => (
+                      <div key={d} className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            <div ref={aiBottomRef} />
+          </div>
+
+          <div className="bg-white border-t border-slate-100 px-5 py-4 flex-shrink-0">
+            <div className="flex gap-2 items-end">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                title="Upload a file"
+                className="p-2.5 rounded-xl border border-slate-200 text-slate-400 hover:border-blue-300 hover:text-blue-500 transition self-end flex-shrink-0"
+              >
+                <Paperclip className="w-4 h-4" />
+              </button>
+              <textarea
+                value={aiInput}
+                onChange={e => setAiInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendAiMessage(aiInput); } }}
+                placeholder="Ask the AI to help with your summary… (Enter to send)"
+                rows={1}
+                disabled={aiLoading}
+                className="flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 placeholder:text-slate-400"
+                style={{ minHeight: "40px", maxHeight: "120px" }}
+              />
+              <Button
+                onClick={() => sendAiMessage(aiInput)}
+                disabled={!aiInput.trim() || aiLoading}
+                className="rounded-xl bg-blue-600 hover:bg-blue-700 px-3 self-end h-10"
+              >
+                {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
