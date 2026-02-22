@@ -7,7 +7,7 @@ import {
   ChevronLeft, ChevronRight, Calendar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { sendMessageToClaudeWithContext } from "@/api/claudeClient";
+import { buildSystemPrompt } from "@/api/claudeClient";
 import { toast } from "sonner";
 
 // ── Storage ────────────────────────────────────────────────────────────────────
@@ -216,6 +216,20 @@ const FINANCIAL_TOOLS = [
     },
   },
   {
+    name: "update_expense",
+    description: "Update an existing expense or income source — change its name, amount, or due day.",
+    input_schema: {
+      type: "object",
+      properties: {
+        name:       { type: "string", description: "Current name of the item to update (partial match)" },
+        new_name:   { type: "string", description: "New name, if changing" },
+        new_amount: { type: "number", description: "New monthly amount in dollars, if changing" },
+        new_day:    { type: "number", description: "New day of month (1-31), if changing" },
+      },
+      required: ["name"],
+    },
+  },
+  {
     name: "list_financials",
     description: "List all current income sources and expenses.",
     input_schema: { type: "object", properties: {} },
@@ -251,6 +265,32 @@ function executeFinancialTool(name, input, update) {
       });
       return { success: true, deleted: match.name };
     }
+    case "update_expense": {
+      const needle = input.name.toLowerCase();
+      const applyUpdate = item => ({
+        ...item,
+        ...(input.new_name   !== undefined ? { name: input.new_name } : {}),
+        ...(input.new_amount !== undefined ? { amount: parseFloat(input.new_amount) } : {}),
+        ...(input.new_day    !== undefined ? { day: input.new_day || null } : {}),
+      });
+      // Try income sources first, then recurring, then wishlist
+      let matched = fin.income_sources.find(s => s.name.toLowerCase().includes(needle));
+      if (matched) {
+        update({ income_sources: fin.income_sources.map(s => s.id === matched.id ? applyUpdate(s) : s) });
+        return { success: true, updated: matched.name };
+      }
+      matched = fin.recurring_expenses.find(e => e.name.toLowerCase().includes(needle));
+      if (matched) {
+        update({ recurring_expenses: fin.recurring_expenses.map(e => e.id === matched.id ? applyUpdate(e) : e) });
+        return { success: true, updated: matched.name };
+      }
+      matched = fin.wishlist_expenses.find(e => e.name.toLowerCase().includes(needle));
+      if (matched) {
+        update({ wishlist_expenses: fin.wishlist_expenses.map(e => e.id === matched.id ? applyUpdate(e) : e) });
+        return { success: true, updated: matched.name };
+      }
+      return { error: `No income or expense found matching "${input.name}"` };
+    }
     case "list_financials":
       return { income_sources: fin.income_sources, recurring_expenses: fin.recurring_expenses, wishlist_expenses: fin.wishlist_expenses };
     default:
@@ -258,8 +298,13 @@ function executeFinancialTool(name, input, update) {
   }
 }
 
-async function financialAgenticLoop(history, update) {
-  const systemPrompt = buildFinancialSystemPrompt(loadFin());
+async function financialAgenticLoop(history, fin, update) {
+  // Full user context (personality, goals, projects, tasks, etc.) + financial snapshot
+  const userContext = await buildSystemPrompt();
+  const financialPrompt = buildFinancialSystemPrompt(fin);
+  // Financial advisor persona + financial data comes first, user context appended after
+  const systemPrompt = `${financialPrompt}\n\n---\n\n${userContext}`;
+
   let messages = history.map(m => ({ role: m.role, content: m.content }));
   for (let turn = 0; turn < 8; turn++) {
     const response = await fetch('/api/claude', {
@@ -267,7 +312,7 @@ async function financialAgenticLoop(history, update) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-5',
-        max_tokens: 1024,
+        max_tokens: 2048,
         system: systemPrompt,
         tools: FINANCIAL_TOOLS,
         messages,
@@ -699,7 +744,7 @@ function OverviewTab({ fin }) {
 }
 
 // ── AI ADVISOR TAB ────────────────────────────────────────────────────────────
-function AdvisorTab({ fin }) {
+function AdvisorTab({ fin, update }) {
   const [messages, setMessages] = useState(loadChat);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -724,7 +769,7 @@ function AdvisorTab({ fin }) {
     setLoading(true);
 
     try {
-      const reply = await sendMessageToClaudeWithContext(updated, buildFinancialContext(fin));
+      const reply = await financialAgenticLoop(updated, fin, update);
       const withReply = [...updated, { role: "assistant", content: reply }];
       setMessages(withReply);
       saveChat(withReply);
@@ -988,7 +1033,7 @@ export default function Financials() {
       {activeTab === "Overview"    && <OverviewTab fin={fin} />}
       {activeTab === "Income"      && <IncomeTab fin={fin} update={update} />}
       {activeTab === "Expenses"    && <ExpensesTab fin={fin} update={update} />}
-      {activeTab === "AI Advisor"  && <AdvisorTab fin={fin} />}
+      {activeTab === "AI Advisor"  && <AdvisorTab fin={fin} update={update} />}
     </div>
   );
 }

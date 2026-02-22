@@ -301,13 +301,14 @@ async function executeTool(name, input) {
 
 // ─── Context builder ─────────────────────────────────────────────────────────
 
-async function buildSystemPrompt() {
+export async function buildSystemPrompt() {
   try {
     const user = await base44.auth.me();
-    const [profiles, projects, allProjectTasks] = await Promise.all([
+    const [profiles, projects, allProjectTasks, tasks] = await Promise.all([
       base44.entities.UserProfile.filter({ created_by: user.email }),
       base44.entities.Project.filter({ created_by: user.email }, "-created_at"),
       base44.entities.ProjectTask.filter({ created_by: user.email }),
+      base44.entities.Task.filter({ created_by: user.email }),
     ]);
     const profile = profiles[0];
 
@@ -342,14 +343,50 @@ async function buildSystemPrompt() {
         tasksByProject[t.project_id].push(t);
       }
       const projectText = projects.map(p => {
-        const tasks = tasksByProject[p.id] || [];
-        const done  = tasks.filter(t => t.is_done).length;
-        const pct   = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
-        const pending = tasks.filter(t => !t.is_done).map(t => `  - ${t.name}${t.due_date ? ` (due ${t.due_date})` : ''}`).join('\n');
-        return `- **${p.name}** (${p.type}, ${p.status})${p.deadline ? ` — deadline: ${p.deadline}` : ''} — ${pct}% complete (${done}/${tasks.length} tasks)${pending ? `\n  Pending tasks:\n${pending}` : ''}`;
+        const pts = tasksByProject[p.id] || [];
+        const done  = pts.filter(t => t.is_done).length;
+        const pct   = pts.length ? Math.round((done / pts.length) * 100) : 0;
+        const pending = pts.filter(t => !t.is_done).map(t => `  - ${t.name}${t.due_date ? ` (due ${t.due_date})` : ''}`).join('\n');
+        return `- **${p.name}** (${p.type}, ${p.status})${p.deadline ? ` — deadline: ${p.deadline}` : ''} — ${pct}% complete (${done}/${pts.length} tasks)${pending ? `\n  Pending tasks:\n${pending}` : ''}`;
       }).join('\n');
       lines.push(`## My Projects\n${projectText}`);
     }
+
+    // Active habits & tasks
+    const activeTasks = tasks.filter(t => t.is_active !== false);
+    if (activeTasks.length > 0) {
+      const taskText = activeTasks.map(t => {
+        let desc = `- ${t.name} (${t.frequency})`;
+        if (t.scheduled_time) desc += ` at ${t.scheduled_time}`;
+        if (t.scheduled_date) desc += ` on ${t.scheduled_date}`;
+        if (t.category) desc += ` [${t.category}]`;
+        return desc;
+      }).join('\n');
+      lines.push(`## My Habits & Tasks\n${taskText}`);
+    }
+
+    // Financial snapshot from localStorage
+    try {
+      const finRaw = localStorage.getItem('accountable_financials_v2');
+      if (finRaw) {
+        const fin = JSON.parse(finRaw);
+        const sumAmts = arr => arr.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
+        const fmtAmt = n => (parseFloat(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const income = sumAmts(fin.income_sources || []);
+        const recurring = sumAmts(fin.recurring_expenses || []);
+        const wishlist = sumAmts(fin.wishlist_expenses || []);
+        const savings = income - recurring - wishlist;
+        const rate = income > 0 ? ((savings / income) * 100).toFixed(1) : 0;
+        if (income > 0 || recurring > 0) {
+          let finText = `Income: $${fmtAmt(income)}/mo`;
+          if ((fin.income_sources || []).length > 0) finText += ` (${fin.income_sources.map(s => `${s.name}: $${fmtAmt(s.amount)}`).join(', ')})`;
+          if (recurring > 0) finText += `\nFixed Expenses: $${fmtAmt(recurring)}/mo — ${(fin.recurring_expenses || []).map(e => `${e.name}: $${fmtAmt(e.amount)}`).join(', ')}`;
+          if (wishlist > 0) finText += `\nOptional Spending: $${fmtAmt(wishlist)}/mo — ${(fin.wishlist_expenses || []).map(e => `${e.name}: $${fmtAmt(e.amount)}`).join(', ')}`;
+          finText += `\nMonthly Savings: $${fmtAmt(savings)} (${rate}% savings rate)`;
+          lines.push(`## My Finances\n${finText}`);
+        }
+      }
+    } catch {}
 
     if (lines.length === 0) return BASE_SYSTEM;
 
@@ -416,7 +453,7 @@ async function _agenticLoop(history, systemPrompt) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-5',
-        max_tokens: hasFiles ? 2048 : 1024,
+        max_tokens: 2048,
         system: systemPrompt,
         tools: TOOLS,
         messages,
