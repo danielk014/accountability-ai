@@ -9,23 +9,24 @@ import {
 import { cn } from "@/lib/utils";
 import { buildSystemPrompt } from "@/api/claudeClient";
 import { toast } from "sonner";
+import { getUserPrefix } from "@/lib/userStore";
 
 // ── Storage ────────────────────────────────────────────────────────────────────
-const STORAGE_KEY = "accountable_financials_v2";
-const CHAT_KEY    = "accountable_financials_chat";
+const getStorageKey = () => `${getUserPrefix()}accountable_financials_v2`;
+const getChatKey    = () => `${getUserPrefix()}accountable_financials_chat`;
 
 function loadFin() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "null") || {
+    return JSON.parse(localStorage.getItem(getStorageKey()) || "null") || {
       income_sources: [],
       recurring_expenses: [],
       wishlist_expenses: [],
     };
   } catch { return { income_sources: [], recurring_expenses: [], wishlist_expenses: [] }; }
 }
-function saveFin(d) { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); }
-function loadChat() { try { return JSON.parse(localStorage.getItem(CHAT_KEY) || "[]"); } catch { return []; } }
-function saveChat(m) { localStorage.setItem(CHAT_KEY, JSON.stringify(m.slice(-60))); }
+function saveFin(d) { localStorage.setItem(getStorageKey(), JSON.stringify(d)); }
+function loadChat() { try { return JSON.parse(localStorage.getItem(getChatKey()) || "[]"); } catch { return []; } }
+function saveChat(m) { localStorage.setItem(getChatKey(), JSON.stringify(m.slice(-60))); }
 function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
 
 // ── Number / date helpers ──────────────────────────────────────────────────────

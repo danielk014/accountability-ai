@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { getUserPrefix } from "@/lib/userStore";
 import { createPortal } from "react-dom";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -53,7 +54,7 @@ const PRIORITY_CONFIG = {
   low:    { label: "Low",    color: "text-slate-400" },
 };
 
-const CHAT_STORAGE_PREFIX = "accountable_project_chat_";
+const getChatStorageKey = (projectId) => `${getUserPrefix()}accountable_project_chat_${projectId}`;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -474,7 +475,7 @@ function ProjectDetail({ project, tasks, onBack, queryClient, onEdit, onDelete }
   const [newTaskPriority, setNewTaskPriority] = useState("medium");
   const [activeSection, setActiveSection]     = useState("tasks");
 
-  const chatKey = `${CHAT_STORAGE_PREFIX}${project?.id}`;
+  const chatKey = getChatStorageKey(project?.id);
   const [chatMessages, setChatMessages] = useState(() => {
     try { return JSON.parse(localStorage.getItem(chatKey) || "[]"); } catch { return []; }
   });

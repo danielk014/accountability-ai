@@ -9,8 +9,11 @@ You have tools to directly manage the user's data. When they ask you to add, edi
 Current date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
 Current time: ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
 
-const STORAGE_KEY = 'accountable_chat_history';
+import { getUserPrefix } from '@/lib/userStore';
+
+const _CHAT_KEY = 'accountable_chat_history';
 const MAX_HISTORY = 40;
+const getStorageKey = () => `${getUserPrefix()}${_CHAT_KEY}`;
 
 // ─── Tool definitions ───────────────────────────────────────────────────────
 
@@ -404,7 +407,7 @@ ${lines.join('\n\n')}`;
 
 export function loadHistory() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(getStorageKey());
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -412,11 +415,11 @@ export function loadHistory() {
 }
 
 export function saveHistory(messages) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-MAX_HISTORY)));
+  localStorage.setItem(getStorageKey(), JSON.stringify(messages.slice(-MAX_HISTORY)));
 }
 
 export function clearHistory() {
-  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(getStorageKey());
 }
 
 // ─── One-off prompt (no tools, no history) ───────────────────────────────────

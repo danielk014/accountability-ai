@@ -1,19 +1,20 @@
 import { sendOneOffPrompt, loadHistory, saveHistory } from '@/api/claudeClient';
+import { getUserPrefix } from '@/lib/userStore';
 
-const REMINDERS_KEY = 'accountable_reminders';
-const UNREAD_KEY    = 'accountable_unread';
+const getRemindersKey = () => `${getUserPrefix()}accountable_reminders`;
+const getUnreadKey    = () => `${getUserPrefix()}accountable_unread`;
 
 let _firing = false; // guard against concurrent checks
 
 // ─── Reminder CRUD ────────────────────────────────────────────────────────────
 
 export function getReminders() {
-  try { return JSON.parse(localStorage.getItem(REMINDERS_KEY) || '[]'); }
+  try { return JSON.parse(localStorage.getItem(getRemindersKey()) || '[]'); }
   catch { return []; }
 }
 
 function _saveReminders(list) {
-  localStorage.setItem(REMINDERS_KEY, JSON.stringify(list));
+  localStorage.setItem(getRemindersKey(), JSON.stringify(list));
 }
 
 export function addReminder({ text, type, time, datetime }) {
@@ -31,17 +32,17 @@ export function deleteReminder(id) {
 // ─── Unread count ─────────────────────────────────────────────────────────────
 
 export function getUnreadCount() {
-  return parseInt(localStorage.getItem(UNREAD_KEY) || '0', 10);
+  return parseInt(localStorage.getItem(getUnreadKey()) || '0', 10);
 }
 
 export function clearUnread() {
-  localStorage.setItem(UNREAD_KEY, '0');
+  localStorage.setItem(getUnreadKey(), '0');
   window.dispatchEvent(new CustomEvent('unread-changed', { detail: { count: 0 } }));
 }
 
 function _incrementUnread() {
   const n = getUnreadCount() + 1;
-  localStorage.setItem(UNREAD_KEY, String(n));
+  localStorage.setItem(getUnreadKey(), String(n));
   window.dispatchEvent(new CustomEvent('unread-changed', { detail: { count: n } }));
 }
 

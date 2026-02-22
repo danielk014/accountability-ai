@@ -8,6 +8,7 @@ import {
   BookOpen, Pencil, RotateCcw, X, GraduationCap, Paperclip,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getUserPrefix } from "@/lib/userStore";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -329,8 +330,8 @@ function ChapterSectionsView({ chapter, onBack, onOpenSection }) {
 
 // ─── SummaryView ──────────────────────────────────────────────────────────────
 
-const SUMMARY_AI_STORAGE = "accountable_summary_ai_";
-const OBJECTIVES_AI_STORAGE = "accountable_objectives_ai_";
+const getSummaryAIKey    = (chapterId) => `${getUserPrefix()}accountable_summary_ai_${chapterId}`;
+const getObjectivesAIKey = (chapterId) => `${getUserPrefix()}accountable_objectives_ai_${chapterId}`;
 
 async function callSummaryAI(messages, systemPrompt) {
   const response = await fetch("/api/claude", {
@@ -390,7 +391,7 @@ function SummaryView({ chapter, onBack }) {
   const entriesRef = useRef(null);
 
   // AI chat state
-  const aiChatKey = `${SUMMARY_AI_STORAGE}${chapter.id}`;
+  const aiChatKey = getSummaryAIKey(chapter.id);
   const [aiMessages, setAiMessages] = useState(() => {
     try { return JSON.parse(localStorage.getItem(aiChatKey) || "[]"); } catch { return []; }
   });
@@ -1204,7 +1205,7 @@ function LearningObjectivesView({ chapter, onBack }) {
   const [manualText, setManualText]       = useState("");
 
   // AI chat state
-  const objChatKey = `${OBJECTIVES_AI_STORAGE}${chapter.id}`;
+  const objChatKey = getObjectivesAIKey(chapter.id);
   const [aiMessages, setAiMessages] = useState(() => {
     try { return JSON.parse(localStorage.getItem(objChatKey) || "[]"); } catch { return []; }
   });

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { localDB } from '@/api/localDB';
 import { queryClientInstance } from '@/lib/query-client';
+import { setCurrentUser, clearCurrentUser, getUserPrefix } from '@/lib/userStore';
 
 const AuthContext = createContext();
 
@@ -11,13 +12,20 @@ export const AuthProvider = ({ children }) => {
   // On mount, restore session from localStorage
   useEffect(() => {
     localDB.auth.me()
-      .then(u => setUser(u))
-      .catch(() => setUser(null))
+      .then(u => {
+        setCurrentUser(u.email); // must be set before app renders
+        setUser(u);
+      })
+      .catch(() => {
+        clearCurrentUser();
+        setUser(null);
+      })
       .finally(() => setLoading(false));
   }, []);
 
   const login = useCallback(async (email, password) => {
     const session = await localDB.auth.login(email, password);
+    setCurrentUser(session.email);
     queryClientInstance.clear();
     setUser({ id: session.id, email: session.email, full_name: session.name, picture: session.picture });
     return session;
@@ -25,12 +33,21 @@ export const AuthProvider = ({ children }) => {
 
   const register = useCallback(async (email, password, name) => {
     const session = await localDB.auth.register(email, password, name);
+    setCurrentUser(session.email);
     queryClientInstance.clear();
     setUser({ id: session.id, email: session.email, full_name: session.name, picture: session.picture });
     return session;
   }, []);
 
   const logout = useCallback(() => {
+    // Wipe all user-scoped localStorage keys before clearing the prefix
+    const prefix = getUserPrefix();
+    if (prefix) {
+      Object.keys(localStorage)
+        .filter(k => k.startsWith(prefix))
+        .forEach(k => localStorage.removeItem(k));
+    }
+    clearCurrentUser();
     localDB.auth.logout();
     queryClientInstance.clear();
     setUser(null);
