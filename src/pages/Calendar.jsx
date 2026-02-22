@@ -12,9 +12,12 @@ import TaskSidebar from "../components/schedule/TaskSidebar.jsx";
 import TaskFormDialog from "../components/tasks/TaskFormDialog.jsx";
 import CalendarPicker from "../components/schedule/CalendarPicker.jsx";
 
+const CAL_SLOT_HEIGHT = 44; // must match SLOT_HEIGHT in WeekView/DayView
+
 export default function Calendar() {
   const [view, setView] = useState("day");
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [mobileDrag, setMobileDrag] = useState(null); // { task, x, y }
 
   const queryClient = useQueryClient();
 
@@ -136,6 +139,33 @@ export default function Calendar() {
     }
   })();
 
+  const handleMobileDragStart = (task, startEvent) => {
+    setMobileDrag({ task, x: startEvent.clientX, y: startEvent.clientY });
+    const onMove = (e) => setMobileDrag(d => d ? { ...d, x: e.clientX, y: e.clientY } : null);
+    const onUp = (e) => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      setMobileDrag(null);
+      // Find which calendar column is under the pointer
+      const els = document.elementsFromPoint(e.clientX, e.clientY);
+      const col = els.find(el => el.dataset?.calendarDate);
+      if (col) {
+        const dateStr = col.dataset.calendarDate;
+        const rect = col.getBoundingClientRect();
+        const relY = Math.max(0, e.clientY - rect.top);
+        const totalMin = Math.round((relY / CAL_SLOT_HEIGHT) * 60 / 15) * 15;
+        const hour = Math.min(23, Math.floor(totalMin / 60) + 6);
+        const min = totalMin % 60;
+        const time = `${String(hour).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+        base44.entities.Task.update(task.id, { scheduled_time: time, scheduled_date: dateStr });
+        queryClient.invalidateQueries({ queryKey: ["tasks"] });
+        toast.success(`Scheduled at ${time}`);
+      }
+    };
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+  };
+
   const navigate = (dir) => {
     const d = new Date(currentDate);
     if (view === "day") d.setDate(d.getDate() + dir);
@@ -251,8 +281,18 @@ export default function Calendar() {
         </div>
 
         {/* Task sidebar — full width on mobile, fixed on md+ */}
-        <TaskSidebar tasks={sidebarTasks} />
+        <TaskSidebar tasks={sidebarTasks} onMobileDragStart={handleMobileDragStart} />
       </div>
+
+      {/* Mobile drag ghost */}
+      {mobileDrag && (
+        <div
+          className="fixed pointer-events-none z-50 rounded-xl bg-indigo-600 text-white text-xs font-semibold px-3 py-2 shadow-xl"
+          style={{ left: mobileDrag.x - 10, top: mobileDrag.y - 36, transform: "translateX(-50%)", maxWidth: 160, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+        >
+          {mobileDrag.task.name}
+        </div>
+      )}
 
       <TaskFormDialog
         open={showForm}

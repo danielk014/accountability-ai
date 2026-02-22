@@ -11,7 +11,7 @@ const CATEGORY_COLORS = {
   other: "bg-gray-100 border-gray-300 text-gray-800",
 };
 
-export default function TaskSidebar({ tasks, completedIds = new Set(), onDragStart, onToggle }) {
+export default function TaskSidebar({ tasks, completedIds = new Set(), onDragStart, onToggle, onMobileDragStart }) {
   return (
     <div className="w-full md:w-56 md:flex-shrink-0">
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden md:sticky md:top-24">
@@ -36,6 +36,12 @@ export default function TaskSidebar({ tasks, completedIds = new Set(), onDragSta
                   e.dataTransfer.effectAllowed = "move";
                   onDragStart?.(task);
                 }}
+                onPointerDown={(e) => {
+                  if (e.pointerType !== "touch") return;
+                  e.preventDefault();
+                  onMobileDragStart?.(task, e);
+                }}
+                style={{ touchAction: "none" }}
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium cursor-grab active:cursor-grabbing transition-all hover:shadow-sm select-none ${color}`}
               >
                 <GripVertical className="w-3 h-3 opacity-50 flex-shrink-0" />

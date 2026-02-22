@@ -79,11 +79,41 @@ function snap(val) {
   return Math.round(val / SNAP) * SNAP;
 }
 
+// Compute side-by-side layout for overlapping tasks within a single day column
+function computeLayout(timedTasks, localData) {
+  if (timedTasks.length === 0) return [];
+  const items = timedTasks.map(task => {
+    const ld = localData[task.id];
+    const timeStr = ld?.time || task.scheduled_time;
+    const top = timeToTop(timeStr);
+    const height = minutesToTop(ld?.durationMin ?? 60);
+    return { task, top, height, bottom: top + Math.max(MIN_HEIGHT, height) };
+  });
+  items.sort((a, b) => a.top - b.top);
+  // Greedy column assignment
+  const colEnds = [];
+  const assigned = items.map(item => {
+    let col = colEnds.findIndex(end => end <= item.top + 1);
+    if (col === -1) col = colEnds.length;
+    colEnds[col] = item.bottom;
+    return { ...item, col };
+  });
+  // Each task's totalCols = max col among all tasks that overlap with it + 1
+  return assigned.map(item => {
+    const totalCols = assigned
+      .filter(o => item.top < o.bottom && item.bottom > o.top)
+      .reduce((max, o) => Math.max(max, o.col), 0) + 1;
+    return { ...item, totalCols };
+  });
+}
+
 // Static block — renders with drag/resize handles (logic handled at WeekView level)
-function TimedTaskBlock({ task, color, completing, onToggle, onRemove, onPointerDown, top, height }) {
+function TimedTaskBlock({ task, color, completing, onToggle, onRemove, onPointerDown, top, height, col = 0, totalCols = 1 }) {
+  const leftPct  = (col / totalCols) * 100;
+  const rightPct = ((totalCols - col - 1) / totalCols) * 100;
   return (
     <motion.div
-      style={{ top: top + 1, height: Math.max(MIN_HEIGHT, height - 3), zIndex: 5, position: "absolute", left: 2, right: 2 }}
+      style={{ top: top + 1, height: Math.max(MIN_HEIGHT, height - 3), zIndex: 5 + col, position: "absolute", left: `calc(${leftPct}% + 2px)`, right: `calc(${rightPct}% + 2px)` }}
       className={`rounded border-l-2 shadow-sm select-none overflow-visible ${color}`}
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
@@ -379,10 +409,13 @@ export default function WeekView({ date, tasks, completions, onToggle, onDropTas
           const nowTop = isToday && nowHour >= 6 && nowHour < 24
             ? ((nowHour - 6) + nowMin / 60) * SLOT_HEIGHT : -1;
 
+          const layout = computeLayout(timedTasks, localData);
+
           return (
             <div
               key={dateStr}
               ref={(el) => { gridRefs.current[dateStr] = el; }}
+              data-calendar-date={dateStr}
               className={`flex-1 border-r border-slate-100 last:border-0 relative transition-colors ${
                 isTargeted ? "bg-indigo-50/40" : isToday ? "bg-indigo-50/20" : ""
               }`}
@@ -412,11 +445,7 @@ export default function WeekView({ date, tasks, completions, onToggle, onDropTas
 
               {/* Timed tasks */}
               <AnimatePresence>
-                {timedTasks.map((task) => {
-                  const ld = localData[task.id];
-                  const timeStr = ld?.time || task.scheduled_time;
-                  const top = timeToTop(timeStr);
-                  const height = minutesToTop(ld?.durationMin ?? 60);
+                {layout.map(({ task, top, height, col, totalCols }) => {
                   const color = CATEGORY_BLOCK[task.category] || CATEGORY_BLOCK.other;
                   return (
                     <TimedTaskBlock
@@ -426,6 +455,8 @@ export default function WeekView({ date, tasks, completions, onToggle, onDropTas
                       completing={!!completing[task.id]}
                       top={top}
                       height={height}
+                      col={col}
+                      totalCols={totalCols}
                       onToggle={() => handleToggle(task, day)}
                       onRemove={() => handleRemoveTask(task)}
                       onPointerDown={(e, type) => handleTaskPointerDown(e, task, color, type)}

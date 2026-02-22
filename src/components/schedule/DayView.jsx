@@ -380,6 +380,7 @@ export default function DayView({ date, tasks, completions, onToggle, onDropTask
     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden flex-1">
       <div
         ref={gridRef}
+        data-calendar-date={dateStr}
         className="relative"
         style={{ height: totalGridHeight }}
         onDrop={handleDrop}
