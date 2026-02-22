@@ -464,6 +464,12 @@ function SummaryView({ chapter, onBack }) {
 
 // ─── FlashcardsView ───────────────────────────────────────────────────────────
 
+const swipeVariants = {
+  enter: (dir) => ({ x: dir > 0 ? 340 : -340, opacity: 0, scale: 0.92 }),
+  center: { x: 0, opacity: 1, scale: 1 },
+  exit: (dir) => ({ x: dir > 0 ? -340 : 340, opacity: 0, scale: 0.92 }),
+};
+
 function FlashcardsView({ chapter, onBack }) {
   const queryClient = useQueryClient();
 
@@ -488,11 +494,59 @@ function FlashcardsView({ chapter, onBack }) {
   const [showAddCard, setShowAddCard] = useState(false);
   const [newFront, setNewFront] = useState("");
   const [newBack, setNewBack] = useState("");
-  const [flippedCards, setFlippedCards] = useState(new Set());
 
+  // Swipe state
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isFlipped, setIsFlipped] = useState(false);
+  const [swipeDir, setSwipeDir] = useState(1);
+  const dragStartX = useRef(0);
+
+  // Auto-select first deck
   useEffect(() => {
     if (decks.length > 0 && !selectedDeck) setSelectedDeck(decks[0]);
   }, [flashcards]);
+
+  const deckCards = selectedDeck ? flashcards.filter(f => f.deck_name === selectedDeck) : [];
+
+  // Reset position when deck changes
+  useEffect(() => {
+    setCurrentIndex(0);
+    setIsFlipped(false);
+  }, [selectedDeck]);
+
+  // Clamp index when cards are deleted
+  useEffect(() => {
+    if (currentIndex >= deckCards.length && deckCards.length > 0) {
+      setCurrentIndex(deckCards.length - 1);
+      setIsFlipped(false);
+    }
+  }, [deckCards.length]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handler = (e) => {
+      if (showAddCard) return;
+      if (e.key === "ArrowRight") goNext();
+      if (e.key === "ArrowLeft")  goPrev();
+      if (e.key === " ") { e.preventDefault(); setIsFlipped(f => !f); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [currentIndex, deckCards.length, showAddCard]);
+
+  const goNext = () => {
+    if (deckCards.length === 0) return;
+    setSwipeDir(1);
+    setIsFlipped(false);
+    setCurrentIndex(i => (i + 1) % deckCards.length);
+  };
+
+  const goPrev = () => {
+    if (deckCards.length === 0) return;
+    setSwipeDir(-1);
+    setIsFlipped(false);
+    setCurrentIndex(i => (i - 1 + deckCards.length) % deckCards.length);
+  };
 
   const createDeck = () => {
     if (!newDeckName.trim()) return;
@@ -523,16 +577,7 @@ function FlashcardsView({ chapter, onBack }) {
     queryClient.invalidateQueries({ queryKey: ["flashcards", chapter.id] });
   };
 
-  const toggleFlip = (id) => {
-    setFlippedCards(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const deckCards = selectedDeck ? flashcards.filter(f => f.deck_name === selectedDeck) : [];
+  const currentCard = deckCards[currentIndex] ?? null;
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-50">
@@ -544,22 +589,28 @@ function FlashcardsView({ chapter, onBack }) {
         <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
           <CreditCard className="w-5 h-5 text-emerald-500" />
         </div>
-        <div>
+        <div className="flex-1">
           <h2 className="text-base font-bold text-slate-800">Flashcards</h2>
           <p className="text-xs text-slate-400">{chapter.name}</p>
         </div>
+        {!showAddCard && selectedDeck && (
+          <Button onClick={() => setShowAddCard(true)} size="sm" variant="outline" className="rounded-xl border-emerald-300 text-emerald-600 hover:bg-emerald-50 flex-shrink-0">
+            <Plus className="w-3.5 h-3.5 mr-1" />
+            Add Card
+          </Button>
+        )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-6">
-        <div className="max-w-3xl mx-auto">
-          {/* Deck tabs */}
-          <div className="flex items-center gap-2 mb-6 flex-wrap">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Deck tabs */}
+        <div className="px-6 pt-4 pb-0 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-wrap">
             {decks.map(deck => (
               <button
                 key={deck}
-                onClick={() => { setSelectedDeck(deck); setFlippedCards(new Set()); }}
+                onClick={() => setSelectedDeck(deck)}
                 className={cn(
-                  "px-4 py-2 rounded-xl text-sm font-medium transition",
+                  "px-4 py-1.5 rounded-xl text-sm font-medium transition",
                   selectedDeck === deck
                     ? "bg-emerald-600 text-white shadow-sm"
                     : "bg-white border border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-600"
@@ -568,7 +619,6 @@ function FlashcardsView({ chapter, onBack }) {
                 {deck}
               </button>
             ))}
-
             {showNewDeck ? (
               <div className="flex gap-2 items-center">
                 <Input
@@ -580,128 +630,212 @@ function FlashcardsView({ chapter, onBack }) {
                     if (e.key === "Escape") setShowNewDeck(false);
                   }}
                   placeholder="Deck name"
-                  className="rounded-xl h-9 w-40 text-sm"
+                  className="rounded-xl h-8 w-36 text-sm"
                 />
-                <Button size="sm" onClick={createDeck} className="rounded-xl bg-emerald-600 hover:bg-emerald-700 h-9 text-xs">Create</Button>
-                <Button size="sm" variant="outline" onClick={() => { setShowNewDeck(false); setNewDeckName(""); }} className="rounded-xl h-9 text-xs">Cancel</Button>
+                <Button size="sm" onClick={createDeck} className="rounded-xl bg-emerald-600 hover:bg-emerald-700 h-8 text-xs px-3">Create</Button>
+                <Button size="sm" variant="outline" onClick={() => { setShowNewDeck(false); setNewDeckName(""); }} className="rounded-xl h-8 text-xs px-3">✕</Button>
               </div>
             ) : (
               <button
                 onClick={() => setShowNewDeck(true)}
-                className="px-3 py-2 rounded-xl text-sm border border-dashed border-slate-300 text-slate-400 hover:border-emerald-400 hover:text-emerald-600 transition flex items-center gap-1.5"
+                className="px-3 py-1.5 rounded-xl text-sm border border-dashed border-slate-300 text-slate-400 hover:border-emerald-400 hover:text-emerald-600 transition flex items-center gap-1"
               >
                 <Plus className="w-3.5 h-3.5" />
                 New Deck
               </button>
             )}
           </div>
+        </div>
 
-          {selectedDeck ? (
-            <>
-              {/* Add card */}
-              {showAddCard ? (
-                <div className="bg-white rounded-2xl border border-slate-200 p-5 mb-5 space-y-4">
-                  <h3 className="text-sm font-semibold text-slate-700">Add flashcard to "{selectedDeck}"</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-xs font-medium text-slate-500 mb-1.5 block">Front (Term / Question)</label>
-                      <textarea
-                        autoFocus
-                        value={newFront}
-                        onChange={e => setNewFront(e.target.value)}
-                        placeholder="e.g. Mitosis"
-                        rows={4}
-                        className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 placeholder:text-slate-300"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-slate-500 mb-1.5 block">Back (Definition / Answer)</label>
-                      <textarea
-                        value={newBack}
-                        onChange={e => setNewBack(e.target.value)}
-                        placeholder="e.g. Cell division producing two identical daughter cells"
-                        rows={4}
-                        className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 placeholder:text-slate-300"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex gap-2 justify-end">
-                    <Button variant="outline" onClick={() => { setShowAddCard(false); setNewFront(""); setNewBack(""); }} className="rounded-xl">Cancel</Button>
-                    <Button onClick={addFlashcard} disabled={!newFront.trim() || !newBack.trim()} className="rounded-xl bg-emerald-600 hover:bg-emerald-700">Add Flashcard</Button>
-                  </div>
-                </div>
-              ) : (
-                <Button onClick={() => setShowAddCard(true)} variant="outline" className="mb-5 rounded-xl border-dashed border-emerald-300 text-emerald-600 hover:bg-emerald-50 hover:border-emerald-400">
-                  <Plus className="w-4 h-4 mr-1.5" />
-                  Add Flashcard
-                </Button>
-              )}
+        {/* Add card form */}
+        {showAddCard && (
+          <div className="mx-6 mt-4 bg-white rounded-2xl border border-slate-200 p-5 space-y-4 flex-shrink-0">
+            <h3 className="text-sm font-semibold text-slate-700">Add flashcard to "{selectedDeck}"</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-medium text-slate-500 mb-1.5 block">Front (Term / Question)</label>
+                <textarea
+                  autoFocus
+                  value={newFront}
+                  onChange={e => setNewFront(e.target.value)}
+                  placeholder="e.g. Mitosis"
+                  rows={3}
+                  className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 placeholder:text-slate-300"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-500 mb-1.5 block">Back (Definition / Answer)</label>
+                <textarea
+                  value={newBack}
+                  onChange={e => setNewBack(e.target.value)}
+                  placeholder="e.g. Cell division producing two identical daughter cells"
+                  rows={3}
+                  className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 placeholder:text-slate-300"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => { setShowAddCard(false); setNewFront(""); setNewBack(""); }} className="rounded-xl">Cancel</Button>
+              <Button onClick={addFlashcard} disabled={!newFront.trim() || !newBack.trim()} className="rounded-xl bg-emerald-600 hover:bg-emerald-700">Add Flashcard</Button>
+            </div>
+          </div>
+        )}
 
-              {/* Cards grid */}
-              {deckCards.length === 0 ? (
-                <div className="text-center py-14">
-                  <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-3">
-                    <CreditCard className="w-7 h-7 text-emerald-200" />
-                  </div>
-                  <p className="text-slate-500 font-medium">No cards in this deck</p>
-                  <p className="text-sm text-slate-400 mt-1">Add your first flashcard above</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <AnimatePresence>
-                    {deckCards.map(card => (
-                      <motion.div
-                        key={card.id}
-                        layout
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        onClick={() => toggleFlip(card.id)}
-                        className="relative bg-white rounded-2xl border border-slate-200 p-5 cursor-pointer hover:border-emerald-300 hover:shadow-md transition-all group min-h-[130px] flex flex-col"
-                      >
-                        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition">
-                          <button
-                            onClick={e => { e.stopPropagation(); deleteCard(card.id); }}
-                            className="p-1.5 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-400 transition"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-
-                        <div className="flex-1">
-                          {flippedCards.has(card.id) ? (
-                            <>
-                              <span className="text-xs font-semibold text-emerald-500 uppercase tracking-wider">Answer</span>
-                              <p className="text-sm text-slate-700 mt-2 leading-relaxed">{card.back}</p>
-                            </>
-                          ) : (
-                            <>
-                              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Term</span>
-                              <p className="text-sm font-semibold text-slate-800 mt-2 leading-snug">{card.front}</p>
-                            </>
-                          )}
-                        </div>
-
-                        <div className="mt-4 flex items-center gap-1 text-xs text-slate-300 border-t border-slate-50 pt-3">
-                          <RotateCcw className="w-3 h-3" />
-                          {flippedCards.has(card.id) ? "Tap for term" : "Tap to reveal"}
-                        </div>
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="text-center py-20">
+        {/* Card swiper */}
+        {!selectedDeck ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
               <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-3">
                 <CreditCard className="w-7 h-7 text-emerald-200" />
               </div>
               <p className="text-slate-500 font-medium">No decks yet</p>
               <p className="text-sm text-slate-400 mt-1">Create a deck to start adding flashcards</p>
             </div>
-          )}
-        </div>
+          </div>
+        ) : deckCards.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-3">
+                <CreditCard className="w-7 h-7 text-emerald-200" />
+              </div>
+              <p className="text-slate-500 font-medium">No cards in this deck</p>
+              <p className="text-sm text-slate-400 mt-1">Press "Add Card" above to get started</p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center px-4 py-4 select-none">
+            {/* Counter */}
+            <p className="text-xs text-slate-400 font-medium mb-4 tracking-wide">
+              {currentIndex + 1} / {deckCards.length}
+            </p>
+
+            {/* Swipe area */}
+            <div className="relative w-full max-w-md flex items-center justify-center">
+              {/* Prev arrow */}
+              <button
+                onClick={goPrev}
+                disabled={deckCards.length <= 1}
+                className="absolute left-0 z-10 p-2.5 rounded-full bg-white border border-slate-200 text-slate-500 hover:border-emerald-300 hover:text-emerald-600 shadow-sm transition disabled:opacity-30"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+
+              {/* Card */}
+              <div className="w-full px-12 overflow-hidden">
+                <AnimatePresence custom={swipeDir} mode="wait">
+                  <motion.div
+                    key={currentCard.id}
+                    custom={swipeDir}
+                    variants={swipeVariants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    drag="x"
+                    dragConstraints={{ left: 0, right: 0 }}
+                    dragElastic={0.15}
+                    onDragStart={(_, info) => { dragStartX.current = info.point.x; }}
+                    onDragEnd={(_, info) => {
+                      const diff = info.offset.x;
+                      if (diff < -60) goNext();
+                      else if (diff > 60) goPrev();
+                    }}
+                    onClick={() => setIsFlipped(f => !f)}
+                    className="cursor-pointer"
+                    style={{ touchAction: "none" }}
+                  >
+                    {/* 3-D flip card */}
+                    <div
+                      style={{
+                        perspective: "1200px",
+                        width: "100%",
+                        minHeight: "260px",
+                      }}
+                    >
+                      <motion.div
+                        animate={{ rotateY: isFlipped ? 180 : 0 }}
+                        transition={{ duration: 0.45, ease: [0.4, 0, 0.2, 1] }}
+                        style={{
+                          transformStyle: "preserve-3d",
+                          position: "relative",
+                          width: "100%",
+                          minHeight: "260px",
+                        }}
+                      >
+                        {/* Front */}
+                        <div
+                          style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
+                          className="absolute inset-0 bg-white rounded-3xl border-2 border-slate-200 shadow-lg flex flex-col items-center justify-center p-8 text-center"
+                        >
+                          <span className="text-xs font-semibold text-slate-300 uppercase tracking-widest mb-5">Term</span>
+                          <p className="text-xl font-bold text-slate-800 leading-snug">{currentCard.front}</p>
+                          <span className="absolute bottom-5 text-xs text-slate-300 flex items-center gap-1">
+                            <RotateCcw className="w-3 h-3" /> Tap to flip
+                          </span>
+                        </div>
+
+                        {/* Back */}
+                        <div
+                          style={{
+                            backfaceVisibility: "hidden",
+                            WebkitBackfaceVisibility: "hidden",
+                            transform: "rotateY(180deg)",
+                          }}
+                          className="absolute inset-0 bg-emerald-600 rounded-3xl shadow-lg flex flex-col items-center justify-center p-8 text-center"
+                        >
+                          <span className="text-xs font-semibold text-emerald-200 uppercase tracking-widest mb-5">Answer</span>
+                          <p className="text-lg font-semibold text-white leading-relaxed">{currentCard.back}</p>
+                          <span className="absolute bottom-5 text-xs text-emerald-300 flex items-center gap-1">
+                            <RotateCcw className="w-3 h-3" /> Tap to flip back
+                          </span>
+                        </div>
+                      </motion.div>
+                    </div>
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+
+              {/* Next arrow */}
+              <button
+                onClick={goNext}
+                disabled={deckCards.length <= 1}
+                className="absolute right-0 z-10 p-2.5 rounded-full bg-white border border-slate-200 text-slate-500 hover:border-emerald-300 hover:text-emerald-600 shadow-sm transition disabled:opacity-30"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Dot indicators */}
+            {deckCards.length <= 12 && (
+              <div className="flex gap-1.5 mt-6">
+                {deckCards.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { setSwipeDir(i > currentIndex ? 1 : -1); setCurrentIndex(i); setIsFlipped(false); }}
+                    className={cn(
+                      "rounded-full transition-all",
+                      i === currentIndex
+                        ? "w-5 h-2 bg-emerald-500"
+                        : "w-2 h-2 bg-slate-300 hover:bg-slate-400"
+                    )}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Delete + hint row */}
+            <div className="flex items-center gap-4 mt-5">
+              <button
+                onClick={() => deleteCard(currentCard.id)}
+                className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-red-400 transition px-3 py-1.5 rounded-xl hover:bg-red-50"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete card
+              </button>
+              <span className="text-xs text-slate-300">← → keys or swipe to navigate · Space to flip</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
