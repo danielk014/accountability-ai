@@ -330,6 +330,7 @@ function ChapterSectionsView({ chapter, onBack, onOpenSection }) {
 // ─── SummaryView ──────────────────────────────────────────────────────────────
 
 const SUMMARY_AI_STORAGE = "accountable_summary_ai_";
+const OBJECTIVES_AI_STORAGE = "accountable_objectives_ai_";
 
 async function callSummaryAI(messages, systemPrompt) {
   const response = await fetch("/api/claude", {
@@ -337,6 +338,22 @@ async function callSummaryAI(messages, systemPrompt) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "claude-sonnet-4-5",
+      max_tokens: 1500,
+      system: systemPrompt,
+      messages: messages.map(m => ({ role: m.role, content: m.content })),
+    }),
+  });
+  if (!response.ok) throw new Error(`API error ${response.status}`);
+  const data = await response.json();
+  return data.content?.find(b => b.type === "text")?.text ?? "";
+}
+
+async function callObjectivesAI(messages, systemPrompt) {
+  const response = await fetch("/api/claude", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
       max_tokens: 1500,
       system: systemPrompt,
       messages: messages.map(m => ({ role: m.role, content: m.content })),
@@ -1182,12 +1199,93 @@ function LearningObjectivesView({ chapter, onBack }) {
     return unsub;
   }, [chapter.id]);
 
+  // Objectives state
   const [showManualAdd, setShowManualAdd] = useState(false);
-  const [manualText, setManualText] = useState("");
-  const [generating, setGenerating] = useState(false);
-  const [aiSuggestions, setAiSuggestions] = useState([]);
-  const [pastedContent, setPastedContent] = useState("");
-  const [showPasteArea, setShowPasteArea] = useState(false);
+  const [manualText, setManualText]       = useState("");
+
+  // AI chat state
+  const objChatKey = `${OBJECTIVES_AI_STORAGE}${chapter.id}`;
+  const [aiMessages, setAiMessages] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(objChatKey) || "[]"); } catch { return []; }
+  });
+  const [aiInput, setAiInput]   = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const messagesEndRef = useRef(null);
+
+  // Mobile panel toggle
+  const [mobilePanel, setMobilePanel] = useState("objectives");
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [aiMessages]);
+
+  const buildSystemPrompt = () => {
+    const summaryText      = summaryEntries.map(e => e.content).join("\n\n");
+    const flashcardText    = flashcards.map(f => `- ${f.front}: ${f.back}`).join("\n");
+    const existingObjs     = objectives.map(o => `- ${o.content}`).join("\n");
+
+    const context = [
+      summaryText   && `CHAPTER SUMMARY:\n${summaryText}`,
+      flashcardText && `FLASHCARDS:\n${flashcardText}`,
+      existingObjs  && `ALREADY SAVED OBJECTIVES (do not repeat these):\n${existingObjs}`,
+    ].filter(Boolean).join("\n\n") || "No study material added yet for this chapter.";
+
+    return `You are an expert educational assistant helping a student master "${chapter.name}". Your role is to help them create precise, measurable learning objectives that will guide their study and exam preparation.
+
+When suggesting objectives, apply Bloom's Taxonomy — choose action verbs that match the required cognitive level:
+- Remember: define, list, recall, recognise, name, state
+- Understand: explain, summarise, describe, paraphrase, classify, interpret
+- Apply: solve, demonstrate, use, calculate, implement, show
+- Analyse: compare, differentiate, examine, break down, contrast, distinguish
+- Evaluate: justify, critique, assess, judge, argue, defend
+- Create: design, construct, formulate, develop, compose, produce
+
+Each objective must:
+- Start with a precise, measurable action verb (never "understand" or "know" — these cannot be tested)
+- Describe a specific, observable outcome tied to the actual chapter content
+- Be concise: one clear sentence
+
+When you suggest objectives the student should save, wrap each one in <OBJECTIVE>...</OBJECTIVE> tags so they can add it with one click. Aim for a mix of lower-order (recall, understand) and higher-order (apply, analyse, evaluate) objectives.
+
+You can also answer questions about the material, explain concepts, identify knowledge gaps, or suggest study strategies based on the chapter content.
+
+Current chapter material:
+${context}`;
+  };
+
+  // Parse <OBJECTIVE>...</OBJECTIVE> tags from AI responses
+  const parseObjectiveBlocks = (text) => {
+    const parts = [];
+    const re = /<OBJECTIVE>([\s\S]*?)<\/OBJECTIVE>/g;
+    let last = 0, m;
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > last) parts.push({ type: "text", content: text.slice(last, m.index) });
+      parts.push({ type: "objective", content: m[1].trim() });
+      last = re.lastIndex;
+    }
+    if (last < text.length) parts.push({ type: "text", content: text.slice(last) });
+    return parts;
+  };
+
+  const sendAiMessage = async (content) => {
+    if (!content.trim() || aiLoading) return;
+    const userMsg = { role: "user", content: content.trim() };
+    const updated = [...aiMessages, userMsg];
+    setAiMessages(updated);
+    setAiInput("");
+    localStorage.setItem(objChatKey, JSON.stringify(updated.slice(-60)));
+    setAiLoading(true);
+    try {
+      const reply = await callObjectivesAI(updated, buildSystemPrompt());
+      const withReply = [...updated, { role: "assistant", content: reply }];
+      setAiMessages(withReply);
+      localStorage.setItem(objChatKey, JSON.stringify(withReply.slice(-60)));
+    } catch {
+      toast.error("AI failed to respond. Please try again.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const addObjective = async (content, aiGenerated = false) => {
     if (!content.trim()) return;
@@ -1204,273 +1302,249 @@ function LearningObjectivesView({ chapter, onBack }) {
     queryClient.invalidateQueries({ queryKey: ["objectives", chapter.id] });
   };
 
-  const generateObjectives = async (extraContext = "") => {
-    if (generating) return;
-    setGenerating(true);
-    setAiSuggestions([]);
-    try {
-      const summaryText = summaryEntries.map(e => e.content).join("\n\n");
-      const flashcardText = flashcards.map(f => `- ${f.front}: ${f.back}`).join("\n");
-      const existingObjectives = objectives.map(o => `- ${o.content}`).join("\n");
-
-      const parts = [];
-      if (summaryText) parts.push(`SUMMARY:\n${summaryText}`);
-      if (flashcardText) parts.push(`FLASHCARDS:\n${flashcardText}`);
-      if (extraContext) parts.push(`ADDITIONAL CONTENT:\n${extraContext}`);
-      if (existingObjectives) parts.push(`ALREADY ADDED OBJECTIVES (do not repeat):\n${existingObjectives}`);
-
-      const context = parts.length > 0
-        ? parts.join("\n\n")
-        : "No study material has been added yet for this chapter.";
-
-      const response = await fetch("/api/claude", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-5",
-          max_tokens: 1024,
-          system: `You are a study assistant helping a student identify what they should learn from a chapter. Based on the provided summary and flashcards, generate 4-7 clear, specific, measurable learning objectives. Each objective must start with an action verb (e.g., "Explain...", "Identify...", "Differentiate...", "Describe...", "Compare...", "Define..."). Return ONLY the objectives, one per line, with no numbering, no bullets, no extra text.`,
-          messages: [
-            {
-              role: "user",
-              content: `Here is the study material for "${chapter.name}":\n\n${context}\n\nGenerate learning objectives.`,
-            },
-          ],
-        }),
-      });
-
-      if (!response.ok) throw new Error("API error");
-      const data = await response.json();
-      const text = data.content?.find(b => b.type === "text")?.text ?? "";
-      const lines = text
-        .split("\n")
-        .map(l => l.replace(/^[-•*\d.)\s]+/, "").trim())
-        .filter(l => l.length > 10);
-      setAiSuggestions(lines);
-      if (lines.length === 0) toast("AI couldn't generate objectives — try adding more summary or flashcards first.");
-    } catch {
-      toast.error("Failed to generate objectives. Please try again.");
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const hasStudyMaterial = summaryEntries.length > 0 || flashcards.length > 0;
+  const quickPrompts = [
+    "Generate learning objectives for this chapter",
+    "What are the most important things I need to know?",
+    "Give me higher-order thinking objectives (analyse & evaluate)",
+    "Create objectives based on my flashcards",
+  ];
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-50">
       {/* Header */}
-      <div className="bg-white border-b border-slate-100 px-6 py-4 flex items-center gap-4 flex-shrink-0">
+      <div className="bg-white border-b border-slate-100 px-4 py-4 flex items-center gap-3 flex-shrink-0">
         <button onClick={onBack} className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition">
           <ArrowLeft className="w-4 h-4" />
         </button>
-        <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0">
-          <Target className="w-5 h-5 text-violet-500" />
+        <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0">
+          <Target className="w-4.5 h-4.5 text-violet-500" />
         </div>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <h2 className="text-base font-bold text-slate-800">Learning Objectives</h2>
-          <p className="text-xs text-slate-400">{chapter.name}</p>
+          <p className="text-xs text-slate-400 truncate">{chapter.name}</p>
         </div>
-        <Button
-          onClick={() => generateObjectives()}
-          disabled={generating}
-          className="rounded-xl bg-violet-600 hover:bg-violet-700 text-sm flex-shrink-0"
-        >
-          {generating
-            ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" />Generating…</>
-            : <><Sparkles className="w-4 h-4 mr-1.5" />Generate with AI</>
-          }
-        </Button>
+        {/* Mobile panel toggle */}
+        <div className="flex md:hidden bg-slate-100 rounded-xl p-0.5 flex-shrink-0">
+          {[["objectives", "Objectives"], ["ai", "✨ AI"]].map(([id, label]) => (
+            <button key={id} onClick={() => setMobilePanel(id)}
+              className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition",
+                mobilePanel === id ? "bg-white text-slate-800 shadow-sm" : "text-slate-500"
+              )}>
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-6">
-        <div className="max-w-2xl mx-auto space-y-6">
+      {/* Two-panel body */}
+      <div className="flex-1 flex overflow-hidden">
 
-          {/* Context hint */}
-          {!hasStudyMaterial && (
-            <div className="bg-amber-50 rounded-xl border border-amber-200 px-4 py-3 flex items-start gap-3">
-              <Sparkles className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-amber-700 leading-relaxed">
-                Add a <strong>Summary</strong> or <strong>Flashcards</strong> first for better AI-generated objectives — or paste content below.
-              </p>
-            </div>
-          )}
+        {/* LEFT — Your Objectives */}
+        <div className={cn(
+          "flex-1 overflow-y-auto px-5 py-5",
+          mobilePanel !== "objectives" ? "hidden md:block" : "block"
+        )}>
+          <div className="max-w-xl mx-auto space-y-5">
 
-          {/* Saved objectives */}
-          {objectives.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Your Objectives</p>
-              <div className="space-y-2">
-                <AnimatePresence>
-                  {objectives.map((obj, i) => (
-                    <motion.div
-                      key={obj.id}
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 8 }}
-                      className="bg-white rounded-xl border border-slate-200 px-4 py-3 flex items-start gap-3 group"
-                    >
-                      <div className="w-6 h-6 rounded-full bg-violet-100 text-violet-600 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
-                        {i + 1}
-                      </div>
-                      <p className="flex-1 text-sm text-slate-700 leading-relaxed">{obj.content}</p>
-                      <div className="flex items-center gap-2 flex-shrink-0 opacity-0 group-hover:opacity-100 transition">
-                        {obj.ai_generated && (
-                          <span className="text-xs text-violet-400 font-medium">AI</span>
-                        )}
-                        <button
-                          onClick={() => deleteObjective(obj.id)}
-                          className="p-1 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-400 transition"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
+            {/* Saved objectives */}
+            {objectives.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Your Objectives</p>
+                <div className="space-y-2">
+                  <AnimatePresence>
+                    {objectives.map((obj, i) => (
+                      <motion.div
+                        key={obj.id}
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 8 }}
+                        className="bg-white rounded-xl border border-slate-200 px-4 py-3 flex items-start gap-3 group"
+                      >
+                        <div className="w-6 h-6 rounded-full bg-violet-100 text-violet-600 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                          {i + 1}
+                        </div>
+                        <p className="flex-1 text-sm text-slate-700 leading-relaxed">{obj.content}</p>
+                        <div className="flex items-center gap-2 flex-shrink-0 opacity-0 group-hover:opacity-100 transition">
+                          {obj.ai_generated && (
+                            <span className="text-xs text-violet-400 font-medium">AI</span>
+                          )}
+                          <button
+                            onClick={() => deleteObjective(obj.id)}
+                            className="p-1 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-400 transition"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* AI suggestions */}
-          {aiSuggestions.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-violet-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5" />
-                AI Suggestions — tap to add
-              </p>
-              <div className="space-y-2">
-                {aiSuggestions.map((obj, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, x: -8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.05 }}
-                    onClick={async () => {
-                      await addObjective(obj, true);
-                      setAiSuggestions(prev => prev.filter((_, idx) => idx !== i));
-                      toast.success("Objective added!");
-                    }}
-                    className="bg-violet-50 border border-violet-200 rounded-xl px-4 py-3 flex items-start gap-3 cursor-pointer hover:bg-violet-100 hover:border-violet-300 transition group"
-                  >
-                    <Plus className="w-4 h-4 text-violet-400 mt-0.5 flex-shrink-0 group-hover:text-violet-600" />
-                    <p className="flex-1 text-sm text-violet-800 leading-relaxed">{obj}</p>
-                  </motion.div>
-                ))}
+            {/* Empty state */}
+            {objectives.length === 0 && (
+              <div className="text-center py-12">
+                <div className="w-14 h-14 rounded-2xl bg-violet-50 flex items-center justify-center mx-auto mb-3">
+                  <Target className="w-7 h-7 text-violet-200" />
+                </div>
+                <p className="text-slate-500 font-medium">No learning objectives yet</p>
+                <p className="text-sm text-slate-400 mt-1">Use the AI chat to generate objectives, or add one manually below</p>
               </div>
-              <div className="flex gap-2 mt-4">
-                <Button
-                  size="sm"
-                  onClick={async () => {
-                    for (const obj of aiSuggestions) await addObjective(obj, true);
-                    setAiSuggestions([]);
-                    toast.success("All objectives added!");
+            )}
+
+            {/* Manual add form / button */}
+            {showManualAdd ? (
+              <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3">
+                <p className="text-sm font-semibold text-slate-700">Add learning objective</p>
+                <textarea
+                  autoFocus
+                  value={manualText}
+                  onChange={e => setManualText(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                      addObjective(manualText);
+                      setManualText("");
+                      setShowManualAdd(false);
+                    }
                   }}
-                  className="rounded-xl bg-violet-600 hover:bg-violet-700 text-xs"
-                >
-                  <Check className="w-3.5 h-3.5 mr-1.5" />
-                  Add All
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setAiSuggestions([])} className="rounded-xl text-xs">
-                  <X className="w-3.5 h-3.5 mr-1.5" />
-                  Dismiss
-                </Button>
+                  placeholder='e.g. "Explain the difference between mitosis and meiosis"'
+                  rows={3}
+                  className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 placeholder:text-slate-300"
+                />
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" onClick={() => { setShowManualAdd(false); setManualText(""); }} className="rounded-xl text-sm">Cancel</Button>
+                  <Button
+                    onClick={() => { addObjective(manualText); setManualText(""); setShowManualAdd(false); }}
+                    disabled={!manualText.trim()}
+                    className="rounded-xl bg-violet-600 hover:bg-violet-700 text-sm"
+                  >
+                    Add Objective
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
-
-          {/* Empty state */}
-          {objectives.length === 0 && aiSuggestions.length === 0 && (
-            <div className="text-center py-12">
-              <div className="w-14 h-14 rounded-2xl bg-violet-50 flex items-center justify-center mx-auto mb-3">
-                <Target className="w-7 h-7 text-violet-200" />
-              </div>
-              <p className="text-slate-500 font-medium">No learning objectives yet</p>
-              <p className="text-sm text-slate-400 mt-1">Generate with AI or add your own below</p>
-            </div>
-          )}
-
-          {/* Paste content for AI */}
-          {showPasteArea ? (
-            <div className="bg-white rounded-2xl border border-violet-200 p-5 space-y-3">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-violet-500" />
-                <p className="text-sm font-semibold text-slate-700">Paste content for AI</p>
-              </div>
-              <p className="text-xs text-slate-400">Paste flashcard lists, lecture notes, or any text — the AI will extract learning objectives from it.</p>
-              <textarea
-                autoFocus
-                value={pastedContent}
-                onChange={e => setPastedContent(e.target.value)}
-                placeholder="Paste your notes, flashcard list, or text here…"
-                rows={6}
-                className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 placeholder:text-slate-300"
-              />
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => { setShowPasteArea(false); setPastedContent(""); }} className="rounded-xl text-sm">Cancel</Button>
-                <Button
-                  onClick={() => { generateObjectives(pastedContent); setShowPasteArea(false); setPastedContent(""); }}
-                  disabled={!pastedContent.trim() || generating}
-                  className="rounded-xl bg-violet-600 hover:bg-violet-700 text-sm"
-                >
-                  <Sparkles className="w-4 h-4 mr-1.5" />
-                  Generate from this content
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex gap-2 flex-wrap">
-              <Button
-                variant="outline"
-                onClick={() => setShowPasteArea(true)}
-                className="rounded-xl border-dashed border-violet-300 text-violet-600 hover:bg-violet-50 text-sm"
-              >
-                <Sparkles className="w-4 h-4 mr-1.5" />
-                Paste content for AI
-              </Button>
+            ) : (
               <Button
                 variant="outline"
                 onClick={() => setShowManualAdd(true)}
-                className="rounded-xl border-dashed border-slate-300 text-slate-500 hover:bg-slate-50 text-sm"
+                className="rounded-xl border-dashed border-slate-300 text-slate-500 hover:bg-slate-50 text-sm w-full"
               >
                 <Plus className="w-4 h-4 mr-1.5" />
                 Add manually
               </Button>
-            </div>
-          )}
-
-          {/* Manual add form */}
-          {showManualAdd && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-3">
-              <p className="text-sm font-semibold text-slate-700">Add learning objective</p>
-              <textarea
-                autoFocus
-                value={manualText}
-                onChange={e => setManualText(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                    addObjective(manualText);
-                    setManualText("");
-                    setShowManualAdd(false);
-                  }
-                }}
-                placeholder='e.g. "Explain the difference between mitosis and meiosis"'
-                rows={3}
-                className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 placeholder:text-slate-300"
-              />
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => { setShowManualAdd(false); setManualText(""); }} className="rounded-xl text-sm">Cancel</Button>
-                <Button
-                  onClick={() => { addObjective(manualText); setManualText(""); setShowManualAdd(false); }}
-                  disabled={!manualText.trim()}
-                  className="rounded-xl bg-violet-600 hover:bg-violet-700 text-sm"
-                >
-                  Add Objective
-                </Button>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
+
+        {/* RIGHT — AI Chat */}
+        <div className={cn(
+          "w-full md:w-96 border-l border-slate-100 bg-white flex flex-col flex-shrink-0",
+          mobilePanel !== "ai" ? "hidden md:flex" : "flex"
+        )}>
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+            {aiMessages.length === 0 ? (
+              <div className="space-y-3 pt-4">
+                <div className="text-center py-6">
+                  <div className="w-12 h-12 rounded-2xl bg-violet-50 flex items-center justify-center mx-auto mb-2">
+                    <Sparkles className="w-6 h-6 text-violet-400" />
+                  </div>
+                  <p className="text-sm font-medium text-slate-700">AI Objectives Assistant</p>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    Chat to generate objectives, ask about the chapter, or identify knowledge gaps
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 gap-2">
+                  {quickPrompts.map(q => (
+                    <button key={q} onClick={() => sendAiMessage(q)}
+                      className="text-left text-xs px-3 py-2.5 rounded-xl border border-slate-200 hover:border-violet-300 hover:bg-violet-50 text-slate-600 hover:text-violet-700 transition bg-white">
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              aiMessages.map((msg, i) => (
+                <div key={i} className={cn("flex gap-2", msg.role === "user" ? "justify-end" : "justify-start")}>
+                  {msg.role === "assistant" && (
+                    <div className="w-7 h-7 rounded-xl bg-violet-100 flex items-center justify-center flex-shrink-0 mt-1">
+                      <Sparkles className="w-3.5 h-3.5 text-violet-600" />
+                    </div>
+                  )}
+                  <div className={cn(
+                    "max-w-[85%] rounded-2xl text-sm leading-relaxed",
+                    msg.role === "user"
+                      ? "bg-violet-600 text-white rounded-tr-sm px-3 py-2.5 whitespace-pre-wrap"
+                      : "bg-white text-slate-800 rounded-tl-sm shadow-sm border border-slate-100 overflow-hidden"
+                  )}>
+                    {msg.role === "assistant" ? (
+                      <div className="p-3 space-y-2">
+                        {parseObjectiveBlocks(msg.content).map((part, pi) =>
+                          part.type === "text" ? (
+                            <p key={pi} className="whitespace-pre-wrap text-slate-800 leading-relaxed">{part.content}</p>
+                          ) : (
+                            <div key={pi} className="bg-violet-50 border border-violet-200 rounded-xl p-3 space-y-2">
+                              <p className="text-xs font-semibold text-violet-600 uppercase tracking-wide">Suggested objective</p>
+                              <p className="text-sm text-slate-700 leading-relaxed">{part.content}</p>
+                              <button
+                                onClick={async () => {
+                                  await addObjective(part.content, true);
+                                  toast.success("Objective added!");
+                                }}
+                                className="flex items-center gap-1.5 text-xs font-semibold text-violet-600 hover:text-violet-800 transition"
+                              >
+                                <Check className="w-3.5 h-3.5" /> Add to my objectives
+                              </button>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    ) : (
+                      msg.content
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+            {aiLoading && (
+              <div className="flex gap-2 justify-start">
+                <div className="w-7 h-7 rounded-xl bg-violet-100 flex items-center justify-center flex-shrink-0">
+                  <Loader2 className="w-3.5 h-3.5 text-violet-600 animate-spin" />
+                </div>
+                <div className="bg-white rounded-2xl rounded-tl-sm shadow-sm border border-slate-100 px-4 py-3">
+                  <div className="flex gap-1">
+                    <span className="w-1.5 h-1.5 bg-violet-300 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="w-1.5 h-1.5 bg-violet-300 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="w-1.5 h-1.5 bg-violet-300 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                  </div>
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input */}
+          <div className="bg-white border-t border-slate-100 px-4 py-4 flex-shrink-0">
+            <div className="flex gap-2 items-end">
+              <textarea
+                value={aiInput}
+                onChange={e => setAiInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendAiMessage(aiInput); } }}
+                placeholder="Ask the AI about objectives…"
+                rows={1}
+                className="flex-1 resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 placeholder:text-slate-300 max-h-28 overflow-y-auto"
+              />
+              <Button
+                onClick={() => sendAiMessage(aiInput)}
+                disabled={!aiInput.trim() || aiLoading}
+                className="rounded-xl bg-violet-600 hover:bg-violet-700 px-3 self-end h-10 flex-shrink-0"
+              >
+                {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              </Button>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   );
