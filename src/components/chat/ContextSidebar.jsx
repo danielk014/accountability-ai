@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import { Plus, X, Brain, ChevronDown, ChevronUp, User, Briefcase, Users, Target, StickyNote, ChevronLeft, ChevronRight, Pencil, Check, Sparkles, Upload, File, Loader2, Bell } from "lucide-react";
+import { Plus, X, Brain, ChevronDown, ChevronUp, User, Briefcase, Users, Target, StickyNote, ChevronLeft, ChevronRight, Pencil, Check, Sparkles, Upload, File, Loader2, Bell, ExternalLink } from "lucide-react";
 import ScreentimeUpload from "@/components/screentime/ScreentimeUpload";
 import RemindersPanel from "@/components/chat/RemindersPanel";
 import { toast } from "sonner";
@@ -151,12 +151,24 @@ function FilesSection({ files = [], profile, saveMutation, queryClient }) {
                 <p className="text-xs font-medium text-slate-700 truncate">{file.name}</p>
                 <p className="text-xs text-slate-400">{new Date(file.uploaded_at).toLocaleDateString()}</p>
               </div>
-              <button
-                onClick={() => handleDelete(i)}
-                className="p-0.5 rounded hover:bg-red-50 text-slate-400 hover:text-red-500 transition flex-shrink-0"
-              >
-                <X className="w-3 h-3" />
-              </button>
+              <div className="flex gap-1 flex-shrink-0">
+                <a
+                  href={file.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-0.5 rounded hover:bg-cyan-50 text-slate-400 hover:text-cyan-500 transition"
+                  title="Open file"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+                <button
+                  onClick={() => handleDelete(i)}
+                  className="p-0.5 rounded hover:bg-red-50 text-slate-400 hover:text-red-500 transition"
+                  title="Delete file"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
             </div>
           ))}
 

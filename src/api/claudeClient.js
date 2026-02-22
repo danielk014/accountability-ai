@@ -337,6 +337,28 @@ export async function buildSystemPrompt() {
         lines.push(`## People in My Life\n${text}`);
       }
       if (profile.ai_personality) lines.push(`## How to Talk to Me\n${profile.ai_personality}`);
+
+      // Context files uploaded by the user
+      if (profile.context_files?.length) {
+        const fileList = profile.context_files
+          .map(f => `- ${f.name} (uploaded ${new Date(f.uploaded_at).toLocaleDateString()})`)
+          .join('\n');
+        lines.push(`## My Uploaded Context Files\nThe user has uploaded these reference documents (${profile.context_files.length} file${profile.context_files.length === 1 ? '' : 's'}):\n${fileList}\nAsk the user to share specific content from these files when relevant.`);
+      }
+
+      // Screen time data
+      if (profile.screentime_files?.length) {
+        const fileList = profile.screentime_files
+          .map(f => `- ${f.name} (uploaded ${new Date(f.uploaded_at).toLocaleDateString()})`)
+          .join('\n');
+        lines.push(`## Screen Time Screenshots\nThe user has uploaded ${profile.screentime_files.length} screen time screenshot(s):\n${fileList}`);
+      }
+      if (profile.screentime_analysis) {
+        const dateStr = profile.screentime_analysis_date
+          ? ` (analyzed ${new Date(profile.screentime_analysis_date).toLocaleDateString()})`
+          : '';
+        lines.push(`## Screen Time Analysis${dateStr}\n${profile.screentime_analysis}`);
+      }
     }
 
     if (projects.length > 0) {
@@ -370,7 +392,7 @@ export async function buildSystemPrompt() {
 
     // Financial snapshot from localStorage
     try {
-      const finRaw = localStorage.getItem('accountable_financials_v2');
+      const finRaw = localStorage.getItem(`${getUserPrefix()}accountable_financials_v2`);
       if (finRaw) {
         const fin = JSON.parse(finRaw);
         const sumAmts = arr => arr.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);

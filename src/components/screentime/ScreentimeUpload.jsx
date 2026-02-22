@@ -3,6 +3,8 @@ import { base44 } from "@/api/base44Client";
 import { Upload, X, Smartphone, FileImage, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 
+const isImageFile = (name) => /\.(jpg|jpeg|png|gif|webp|heic|heif)$/i.test(name);
+
 export default function ScreentimeUpload({ profile, saveMutation, compact = false }) {
   const [open, setOpen] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -62,6 +64,15 @@ Be concise and give 2-3 actionable accountability insights. Format with short bu
         }
       });
       setAnalysis(result);
+      // Persist analysis so AI chat can reference it
+      if (profile?.id) {
+        const analysisText = [
+          result.total_time ? `Total: ${result.total_time}` : null,
+          result.top_apps?.length ? `Top apps: ${result.top_apps.join(', ')}` : null,
+          result.insights?.length ? `Insights: ${result.insights.join(' | ')}` : null,
+        ].filter(Boolean).join('\n');
+        saveMutation.mutate({ screentime_analysis: analysisText, screentime_analysis_date: new Date().toISOString() });
+      }
     } catch {
       // silently fail analysis
     } finally {
@@ -96,12 +107,25 @@ Be concise and give 2-3 actionable accountability insights. Format with short bu
         </button>
         {open && (
           <div className="px-4 pb-4 space-y-2">
-            {screentimeFiles.slice(-3).map((file, i) => (
+            {screentimeFiles.map((file, i) => (
               <div key={i} className="flex items-center gap-2 bg-orange-50 border border-orange-100 rounded-lg px-3 py-2 group">
-                <FileImage className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" />
-                <span className="text-xs text-slate-600 flex-1 truncate">{file.name}</span>
-                <button onClick={() => handleDelete(screentimeFiles.length - (Math.min(3, screentimeFiles.length)) + i)}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity">
+                {isImageFile(file.name) ? (
+                  <img
+                    src={file.url}
+                    alt={file.name}
+                    className="w-10 h-10 object-cover rounded flex-shrink-0 border border-orange-200"
+                    onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }}
+                  />
+                ) : null}
+                <FileImage
+                  className="w-3.5 h-3.5 text-orange-500 flex-shrink-0"
+                  style={{ display: isImageFile(file.name) ? 'none' : 'block' }}
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-slate-600 truncate">{file.name}</p>
+                  <p className="text-xs text-slate-400">{new Date(file.uploaded_at).toLocaleDateString()}</p>
+                </div>
+                <button onClick={() => handleDelete(i)} className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                   <X className="w-3 h-3 text-slate-400 hover:text-red-500" />
                 </button>
               </div>
@@ -149,7 +173,17 @@ Be concise and give 2-3 actionable accountability insights. Format with short bu
 
           {screentimeFiles.map((file, i) => (
             <div key={i} className="flex items-center gap-3 bg-white border border-orange-100 rounded-xl px-4 py-3 group">
-              <FileImage className="w-4 h-4 text-orange-500 flex-shrink-0" />
+              {isImageFile(file.name) ? (
+                <a href={file.url} target="_blank" rel="noopener noreferrer">
+                  <img
+                    src={file.url}
+                    alt={file.name}
+                    className="w-12 h-12 object-cover rounded-lg flex-shrink-0 border border-orange-200 hover:opacity-80 transition"
+                  />
+                </a>
+              ) : (
+                <FileImage className="w-4 h-4 text-orange-500 flex-shrink-0" />
+              )}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-slate-700 truncate">{file.name}</p>
                 <p className="text-xs text-slate-400">{new Date(file.uploaded_at).toLocaleDateString()}</p>

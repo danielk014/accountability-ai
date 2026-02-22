@@ -40,13 +40,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const logout = useCallback(() => {
-    // Wipe all user-scoped localStorage keys before clearing the prefix
-    const prefix = getUserPrefix();
-    if (prefix) {
-      Object.keys(localStorage)
-        .filter(k => k.startsWith(prefix))
-        .forEach(k => localStorage.removeItem(k));
-    }
+    // Only clear the session — never delete user data so it persists across logins
     clearCurrentUser();
     localDB.auth.logout();
     queryClientInstance.clear();
