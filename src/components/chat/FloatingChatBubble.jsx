@@ -112,7 +112,7 @@ export default function FloatingChatBubble({ currentPageName }) {
     }
   };
 
-  if (currentPageName === "Chat") return null;
+  if (currentPageName === "Chat" || currentPageName === "Projects") return null;
 
   return (
     <>

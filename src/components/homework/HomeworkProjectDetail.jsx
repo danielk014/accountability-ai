@@ -468,27 +468,61 @@ When you generate a paragraph of summary text that the student should save, wrap
     if (!file) return;
     e.target.value = "";
 
-    const maxSize = 500 * 1024; // 500 KB
+    const isImage = file.type.startsWith("image/");
+    const maxSize = isImage ? 5 * 1024 * 1024 : 500 * 1024;
     if (file.size > maxSize) {
-      toast.error("File too large — please upload files under 500 KB");
+      toast.error(isImage ? "Image too large — please upload images under 5 MB" : "File too large — please upload files under 500 KB");
       return;
     }
 
     const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const content = ev.target?.result;
-      if (!content || typeof content !== "string") {
-        toast.error("Could not read file. Make sure it's a plain text file.");
-        return;
-      }
-      // Switch to AI panel and send file content as message
-      setPanel("ai");
-      const truncated = content.length > 8000 ? content.slice(0, 8000) + "\n\n[File truncated at 8000 chars]" : content;
-      const prompt = `I've uploaded a file called "${file.name}". Please read its contents and generate a concise, well-structured summary I can save for my notes:\n\n---\n${truncated}\n---`;
-      await sendAiMessage(prompt);
-    };
-    reader.onerror = () => toast.error("Failed to read file");
-    reader.readAsText(file);
+
+    if (isImage) {
+      reader.onload = async (ev) => {
+        const dataUrl = ev.target?.result;
+        if (!dataUrl) { toast.error("Could not read image."); return; }
+        const [header, base64Data] = dataUrl.split(",");
+        const mediaType = header.match(/:(.*?);/)?.[1] ?? "image/jpeg";
+        setPanel("ai");
+        // Show a text placeholder in history (can't persist base64 in localStorage)
+        const displayMsg = { role: "user", content: `📷 Image: ${file.name}` };
+        const updatedDisplay = [...aiMessages, displayMsg];
+        setAiMessages(updatedDisplay);
+        localStorage.setItem(aiChatKey, JSON.stringify(updatedDisplay.slice(-60)));
+        setAiLoading(true);
+        try {
+          const imageContent = [
+            { type: "image", source: { type: "base64", media_type: mediaType, data: base64Data } },
+            { type: "text", text: `I've uploaded an image called "${file.name}". Please transcribe any text visible in it and generate a concise, well-structured summary I can save for my notes. If it contains diagrams or visuals, describe them in detail.` },
+          ];
+          const messagesForAI = [...aiMessages, { role: "user", content: imageContent }];
+          const reply = await callSummaryAI(messagesForAI, buildSystemPrompt());
+          const withReply = [...updatedDisplay, { role: "assistant", content: reply }];
+          setAiMessages(withReply);
+          localStorage.setItem(aiChatKey, JSON.stringify(withReply.slice(-60)));
+        } catch {
+          toast.error("AI failed to respond. Please try again.");
+        } finally {
+          setAiLoading(false);
+        }
+      };
+      reader.onerror = () => toast.error("Failed to read image");
+      reader.readAsDataURL(file);
+    } else {
+      reader.onload = async (ev) => {
+        const content = ev.target?.result;
+        if (!content || typeof content !== "string") {
+          toast.error("Could not read file. Make sure it's a plain text file.");
+          return;
+        }
+        setPanel("ai");
+        const truncated = content.length > 8000 ? content.slice(0, 8000) + "\n\n[File truncated at 8000 chars]" : content;
+        const prompt = `I've uploaded a file called "${file.name}". Please read its contents and generate a concise, well-structured summary I can save for my notes:\n\n---\n${truncated}\n---`;
+        await sendAiMessage(prompt);
+      };
+      reader.onerror = () => toast.error("Failed to read file");
+      reader.readAsText(file);
+    }
   };
 
   // Extract <SAVE>...</SAVE> blocks from AI message
@@ -529,7 +563,7 @@ When you generate a paragraph of summary text that the student should save, wrap
         {/* File upload */}
         <button
           onClick={() => fileInputRef.current?.click()}
-          title="Upload a file to generate a summary with AI"
+          title="Upload a file or image to generate a summary with AI"
           className="p-2 rounded-xl hover:bg-blue-50 text-slate-400 hover:text-blue-500 transition flex-shrink-0"
         >
           <Paperclip className="w-4 h-4" />
@@ -537,7 +571,7 @@ When you generate a paragraph of summary text that the student should save, wrap
         <input
           ref={fileInputRef}
           type="file"
-          accept=".txt,.md,.csv,.json,.xml,.html,.htm,.rtf"
+          accept=".txt,.md,.csv,.json,.xml,.html,.htm,.rtf,.jpg,.jpeg,.png,.gif,.webp"
           className="hidden"
           onChange={handleFileUpload}
         />
@@ -778,7 +812,8 @@ function FlashcardsView({ chapter, onBack }) {
     return unsub;
   }, [chapter.id]);
 
-  const decks = [...new Set(flashcards.map(f => f.deck_name))];
+  const [pendingDecks, setPendingDecks] = useState([]); // newly created decks before any card is added
+  const decks = [...new Set([...pendingDecks, ...flashcards.map(f => f.deck_name)])];
 
   const [selectedDeck, setSelectedDeck] = useState(null);
   const [showNewDeck, setShowNewDeck]   = useState(false);
@@ -792,6 +827,7 @@ function FlashcardsView({ chapter, onBack }) {
   const [isFlipped, setIsFlipped]       = useState(false);
   const [swipeDir, setSwipeDir]         = useState(1);
   const wasDragging = useRef(false); // prevent flip-on-drag-release
+  const mouseDownTime = useRef(null); // prevent flip-on-hold
 
   // Auto-select first deck
   useEffect(() => {
@@ -849,6 +885,7 @@ function FlashcardsView({ chapter, onBack }) {
   const createDeck = () => {
     if (!newDeckName.trim()) return;
     const name = newDeckName.trim();
+    setPendingDecks(d => [...d, name]);
     setSelectedDeck(name);
     setNewDeckName("");
     setShowNewDeck(false);
@@ -863,6 +900,7 @@ function FlashcardsView({ chapter, onBack }) {
       front: newFront.trim(),
       back: newBack.trim(),
     });
+    setPendingDecks(d => d.filter(n => n !== selectedDeck));
     queryClient.invalidateQueries({ queryKey: ["flashcards", chapter.id] });
     setNewFront("");
     setNewBack("");
@@ -975,8 +1013,15 @@ function FlashcardsView({ chapter, onBack }) {
               <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-3">
                 <CreditCard className="w-7 h-7 text-emerald-200" />
               </div>
-              <p className="text-slate-500 font-medium">No cards in this deck</p>
-              <p className="text-sm text-slate-400 mt-1">Press "Add Card" above to get started</p>
+              <p className="text-slate-500 font-medium">No cards in this deck yet</p>
+              <p className="text-sm text-slate-400 mt-1 mb-4">Add your first flashcard to get started</p>
+              <Button
+                onClick={() => setShowAddCard(true)}
+                className="rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5"
+              >
+                <Plus className="w-4 h-4 mr-1.5" />
+                Add Flashcard
+              </Button>
             </div>
           </div>
         ) : !currentCard ? null : (
@@ -1023,7 +1068,13 @@ function FlashcardsView({ chapter, onBack }) {
                     */}
                     <div style={{ perspective: "1000px" }}>
                       <div
-                        onClick={() => { if (!wasDragging.current) setIsFlipped(f => !f); }}
+                        onMouseDown={() => { mouseDownTime.current = Date.now(); }}
+                        onTouchStart={() => { mouseDownTime.current = Date.now(); }}
+                        onClick={() => {
+                          const held = mouseDownTime.current && (Date.now() - mouseDownTime.current) > 200;
+                          mouseDownTime.current = null;
+                          if (!wasDragging.current && !held) setIsFlipped(f => !f);
+                        }}
                         style={{
                           transformStyle: "preserve-3d",
                           transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
