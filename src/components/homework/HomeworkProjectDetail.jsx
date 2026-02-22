@@ -332,14 +332,16 @@ function ChapterSectionsView({ chapter, onBack, onOpenSection }) {
 
 const getSummaryAIKey    = (chapterId) => `${getUserPrefix()}accountable_summary_ai_${chapterId}`;
 const getObjectivesAIKey = (chapterId) => `${getUserPrefix()}accountable_objectives_ai_${chapterId}`;
-const getFlashcardsAIKey = (chapterId) => `${getUserPrefix()}accountable_flashcards_ai_${chapterId}`;
+const getFlashcardsAIKey  = (chapterId) => `${getUserPrefix()}accountable_flashcards_ai_${chapterId}`;
+const getDecksStorageKey  = (chapterId) => `${getUserPrefix()}accountable_decks_${chapterId}`;
+const getFilesStorageKey  = (chapterId) => `${getUserPrefix()}accountable_summary_files_${chapterId}`;
 
 async function callSummaryAI(messages, systemPrompt) {
   const response = await fetch("/api/claude", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "claude-sonnet-4-5",
+      model: "claude-sonnet-4-6",
       max_tokens: 1500,
       system: systemPrompt,
       messages: messages.map(m => ({ role: m.role, content: m.content })),
@@ -402,10 +404,23 @@ function SummaryView({ chapter, onBack }) {
   const [panel, setPanel] = useState("write");
 
   // Write mode state
-  const [writeText, setWriteText] = useState("");
-  const [saving, setSaving]       = useState(false);
+  const [writeText, setWriteText]               = useState("");
+  const [saving, setSaving]                     = useState(false);
+  const [confirmDeleteEntryId, setConfirmDeleteEntryId] = useState(null);
+  const [confirmDeleteEntryFinal, setConfirmDeleteEntryFinal] = useState(null);
   const textRef    = useRef(null);
   const entriesRef = useRef(null);
+
+  // Uploaded files (persisted in localStorage per chapter)
+  const filesKey = getFilesStorageKey(chapter.id);
+  const [uploadedFiles, setUploadedFiles] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(getFilesStorageKey(chapter.id)) || "[]"); } catch { return []; }
+  });
+  const saveUploadedFiles = (files) => {
+    setUploadedFiles(files);
+    try { localStorage.setItem(filesKey, JSON.stringify(files)); } catch { toast.error("Storage full — remove some files to free space"); }
+  };
+  const deleteUploadedFile = (id) => saveUploadedFiles(uploadedFiles.filter(f => f.id !== id));
 
   // AI chat state
   const aiChatKey = getSummaryAIKey(chapter.id);
@@ -470,6 +485,23 @@ ${savedText ? `The student has already written the following summary:\n\n${saved
 When you generate a paragraph of summary text that the student should save, wrap it in <SAVE>...</SAVE> tags so they can save it with one click. Keep responses concise and educational.`;
   };
 
+  // Build file-prepended messages so the AI always has access to uploaded files
+  const buildMessagesWithFiles = (msgs) => {
+    if (uploadedFiles.length === 0) return msgs;
+    const filePreamble = uploadedFiles.flatMap(f => [
+      {
+        role: "user",
+        content: f.isPDF
+          ? [{ type: "document", source: { type: "base64", media_type: "application/pdf", data: f.base64 } },
+             { type: "text", text: `This is my attached file: "${f.name}". Use it as context.` }]
+          : [{ type: "image", source: { type: "base64", media_type: f.mediaType, data: f.base64 } },
+             { type: "text", text: `This is my attached file: "${f.name}". Use it as context.` }],
+      },
+      { role: "assistant", content: `Got it — I can see "${f.name}" and will use it as context for your questions.` },
+    ]);
+    return [...filePreamble, ...msgs];
+  };
+
   const sendAiMessage = async (content) => {
     if (!content.trim() || aiLoading) return;
     const userMsg = { role: "user", content: content.trim() };
@@ -479,7 +511,7 @@ When you generate a paragraph of summary text that the student should save, wrap
     localStorage.setItem(aiChatKey, JSON.stringify(updated.slice(-60)));
     setAiLoading(true);
     try {
-      const reply = await callSummaryAI(updated, buildSystemPrompt());
+      const reply = await callSummaryAI(buildMessagesWithFiles(updated), buildSystemPrompt());
       const withReply = [...updated, { role: "assistant", content: reply }];
       setAiMessages(withReply);
       localStorage.setItem(aiChatKey, JSON.stringify(withReply.slice(-60)));
@@ -504,33 +536,48 @@ When you generate a paragraph of summary text that the student should save, wrap
     e.target.value = "";
 
     const isImage = file.type.startsWith("image/");
-    const maxSize = isImage ? 5 * 1024 * 1024 : 500 * 1024;
+    const isPDF   = file.type === "application/pdf";
+    const maxSize = isImage ? 5 * 1024 * 1024 : isPDF ? 20 * 1024 * 1024 : 500 * 1024;
     if (file.size > maxSize) {
-      toast.error(isImage ? "Image too large — please upload images under 5 MB" : "File too large — please upload files under 500 KB");
+      toast.error(
+        isImage ? "Image too large — please upload images under 5 MB"
+        : isPDF  ? "PDF too large — please upload PDFs under 20 MB"
+        :          "File too large — please upload files under 500 KB"
+      );
       return;
     }
 
     const reader = new FileReader();
 
-    if (isImage) {
+    if (isImage || isPDF) {
       reader.onload = async (ev) => {
         const dataUrl = ev.target?.result;
-        if (!dataUrl) { toast.error("Could not read image."); return; }
+        if (!dataUrl) { toast.error(`Could not read ${isPDF ? "PDF" : "image"}.`); return; }
         const [header, base64Data] = dataUrl.split(",");
-        const mediaType = header.match(/:(.*?);/)?.[1] ?? "image/jpeg";
+        const mediaType = isPDF ? "application/pdf" : (header.match(/:(.*?);/)?.[1] ?? "image/jpeg");
+
+        // Persist the file so it stays available across messages
+        const newFile = { id: Date.now().toString(), name: file.name, isPDF, mediaType, base64: base64Data, addedAt: new Date().toISOString() };
+        const nextFiles = [...uploadedFiles, newFile];
+        saveUploadedFiles(nextFiles);
+
         setPanel("ai");
-        // Show a text placeholder in history (can't persist base64 in localStorage)
-        const displayMsg = { role: "user", content: `📷 Image: ${file.name}` };
+        const displayMsg = { role: "user", content: isPDF ? `📄 PDF: ${file.name}` : `📷 Image: ${file.name}` };
         const updatedDisplay = [...aiMessages, displayMsg];
         setAiMessages(updatedDisplay);
         localStorage.setItem(aiChatKey, JSON.stringify(updatedDisplay.slice(-60)));
         setAiLoading(true);
         try {
-          const imageContent = [
-            { type: "image", source: { type: "base64", media_type: mediaType, data: base64Data } },
-            { type: "text", text: `I've uploaded an image called "${file.name}". Please transcribe any text visible in it and generate a concise, well-structured summary I can save for my notes. If it contains diagrams or visuals, describe them in detail.` },
-          ];
-          const messagesForAI = [...aiMessages, { role: "user", content: imageContent }];
+          const fileContent = isPDF
+            ? [
+                { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64Data } },
+                { type: "text", text: `I've uploaded a PDF called "${file.name}". Please read its contents and generate a concise, well-structured summary I can save for my notes. Wrap the summary text in <SAVE>...</SAVE> tags so I can save it with one click.` },
+              ]
+            : [
+                { type: "image", source: { type: "base64", media_type: mediaType, data: base64Data } },
+                { type: "text", text: `I've uploaded an image called "${file.name}". Please read all the text visible in this image carefully and generate a concise, well-structured summary I can save for my notes. If it contains charts, stats, or tables, describe them in detail. Wrap the summary text in <SAVE>...</SAVE> tags so I can save it with one click.` },
+              ];
+          const messagesForAI = [...aiMessages, { role: "user", content: fileContent }];
           const reply = await callSummaryAI(messagesForAI, buildSystemPrompt());
           const withReply = [...updatedDisplay, { role: "assistant", content: reply }];
           setAiMessages(withReply);
@@ -541,7 +588,7 @@ When you generate a paragraph of summary text that the student should save, wrap
           setAiLoading(false);
         }
       };
-      reader.onerror = () => toast.error("Failed to read image");
+      reader.onerror = () => toast.error(`Failed to read ${isPDF ? "PDF" : "image"}`);
       reader.readAsDataURL(file);
     } else {
       reader.onload = async (ev) => {
@@ -606,7 +653,7 @@ When you generate a paragraph of summary text that the student should save, wrap
         <input
           ref={fileInputRef}
           type="file"
-          accept=".txt,.md,.csv,.json,.xml,.html,.htm,.rtf,.jpg,.jpeg,.png,.gif,.webp"
+          accept=".txt,.md,.csv,.json,.xml,.html,.htm,.rtf,.jpg,.jpeg,.png,.gif,.webp,.pdf"
           className="hidden"
           onChange={handleFileUpload}
         />
@@ -629,6 +676,28 @@ When you generate a paragraph of summary text that the student should save, wrap
           </button>
         ))}
       </div>
+
+      {/* ── Uploaded files strip ── */}
+      {uploadedFiles.length > 0 && (
+        <div className="bg-white border-b border-slate-100 px-6 py-2 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-slate-400 font-medium flex-shrink-0">Files:</span>
+            {uploadedFiles.map(f => (
+              <div key={f.id} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-100 text-xs text-blue-700 group">
+                <span>{f.isPDF ? "📄" : "📷"}</span>
+                <span className="max-w-[140px] truncate font-medium">{f.name}</span>
+                <button
+                  onClick={() => deleteUploadedFile(f.id)}
+                  className="ml-0.5 opacity-50 group-hover:opacity-100 hover:text-red-500 transition rounded"
+                  title="Remove file"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Write panel ── */}
       {panel === "write" && (
@@ -658,12 +727,38 @@ When you generate a paragraph of summary text that the student should save, wrap
                           month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
                         })}
                       </span>
-                      <button
-                        onClick={() => deleteEntry(entry.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-400 transition"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {confirmDeleteEntryFinal === entry.id ? (
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-red-600 font-semibold">This is permanent.</span>
+                          <button
+                            onClick={() => { deleteEntry(entry.id); setConfirmDeleteEntryFinal(null); setConfirmDeleteEntryId(null); }}
+                            className="px-2 py-0.5 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition"
+                          >Confirm</button>
+                          <button
+                            onClick={() => { setConfirmDeleteEntryFinal(null); setConfirmDeleteEntryId(null); }}
+                            className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 text-xs font-semibold hover:bg-slate-200 transition"
+                          >Cancel</button>
+                        </div>
+                      ) : confirmDeleteEntryId === entry.id ? (
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-red-500 font-medium">Delete?</span>
+                          <button
+                            onClick={() => setConfirmDeleteEntryFinal(entry.id)}
+                            className="px-2 py-0.5 rounded-lg bg-red-500 text-white text-xs font-semibold hover:bg-red-600 transition"
+                          >Yes</button>
+                          <button
+                            onClick={() => setConfirmDeleteEntryId(null)}
+                            className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 text-xs font-semibold hover:bg-slate-200 transition"
+                          >No</button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDeleteEntryId(entry.id)}
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-red-50 text-slate-300 hover:text-red-400 transition"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </motion.div>
                 ))
@@ -859,16 +954,38 @@ function FlashcardsView({ chapter, onBack }) {
     return unsub;
   }, [chapter.id]);
 
-  const [pendingDecks, setPendingDecks] = useState([]);
-  const decks = [...new Set([...pendingDecks, ...flashcards.map(f => f.deck_name)])];
+  // Persist deck names in localStorage so empty decks survive card deletions
+  const [storedDecks, setStoredDecks] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(getDecksStorageKey(chapter.id)) || "[]");
+      if (saved.length === 0) {
+        localStorage.setItem(getDecksStorageKey(chapter.id), JSON.stringify(["General"]));
+        return ["General"];
+      }
+      return saved;
+    } catch { return ["General"]; }
+  });
+  const saveStoredDecks = (list) => {
+    setStoredDecks(list);
+    localStorage.setItem(getDecksStorageKey(chapter.id), JSON.stringify(list));
+  };
+  const decks = [...new Set([...storedDecks, ...flashcards.map(f => f.deck_name)])];
 
-  const [selectedDeck, setSelectedDeck] = useState(null);
-  const [showNewDeck, setShowNewDeck]   = useState(false);
-  const [newDeckName, setNewDeckName]   = useState("");
-  const [showAddCard, setShowAddCard]   = useState(false);
-  const [newFront, setNewFront]         = useState("");
-  const [newBack, setNewBack]           = useState("");
-  const [mobilePanel, setMobilePanel]   = useState("cards");
+  const [selectedDeck, setSelectedDeck]         = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(getDecksStorageKey(chapter.id)) || "[]");
+      return saved[0] ?? "General";
+    } catch { return "General"; }
+  });
+  const [showNewDeck, setShowNewDeck]           = useState(false);
+  const [newDeckName, setNewDeckName]           = useState("");
+  const [showAddCard, setShowAddCard]           = useState(false);
+  const [newFront, setNewFront]                 = useState("");
+  const [newBack, setNewBack]                   = useState("");
+  const [mobilePanel, setMobilePanel]           = useState("cards");
+  const [confirmDeleteDeck, setConfirmDeleteDeck] = useState(null); // deck name
+  const [confirmDeleteCard, setConfirmDeleteCard] = useState(false);
+  const [confirmDeleteCardFinal, setConfirmDeleteCardFinal] = useState(false);
 
   // Swipe / flip state
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -890,14 +1007,16 @@ function FlashcardsView({ chapter, onBack }) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [aiMessages]);
 
-  // Auto-select first deck
+  // Auto-select first deck if none selected (e.g. after deck deletion)
   useEffect(() => {
-    if (decks.length > 0 && !selectedDeck) setSelectedDeck(decks[0]);
-  }, [flashcards]);
+    if (!selectedDeck && decks.length > 0) {
+      setSelectedDeck(decks[0]);
+    }
+  }, [flashcards, storedDecks]);
 
   const deckCards = selectedDeck ? flashcards.filter(f => f.deck_name === selectedDeck) : [];
 
-  useEffect(() => { setCurrentIndex(0); setIsFlipped(false); }, [selectedDeck]);
+  useEffect(() => { setCurrentIndex(0); setIsFlipped(false); setConfirmDeleteCard(false); setConfirmDeleteCardFinal(false); }, [selectedDeck]);
 
   useEffect(() => {
     if (deckCards.length > 0 && currentIndex >= deckCards.length) {
@@ -977,7 +1096,6 @@ ${context}`;
     const deck = selectedDeck || decks[0];
     if (!deck) { toast.error("Create or select a deck first"); return; }
     await base44.entities.Flashcard.create({ chapter_id: chapter.id, deck_name: deck, front, back });
-    setPendingDecks(d => d.filter(n => n !== deck));
     queryClient.invalidateQueries({ queryKey: ["flashcards", chapter.id] });
     toast.success("Flashcard added to " + deck + "!");
   };
@@ -1002,14 +1120,28 @@ ${context}`;
     }
   };
 
-  const createDeck = () => {
-    if (!newDeckName.trim()) return;
-    const name = newDeckName.trim();
-    setPendingDecks(d => [...d, name]);
+  const createDeck = (nameOverride) => {
+    const name = (nameOverride || newDeckName).trim();
+    if (!name) return;
+    if (!storedDecks.includes(name)) saveStoredDecks([...storedDecks, name]);
     setSelectedDeck(name);
     setNewDeckName("");
     setShowNewDeck(false);
-    toast.success(`Deck "${name}" ready — add flashcards below`);
+    if (!nameOverride) toast.success(`Deck "${name}" ready — add flashcards below`);
+  };
+
+  const deleteDeck = async (deckName) => {
+    // Delete all flashcards in this deck
+    const toDelete = flashcards.filter(f => f.deck_name === deckName);
+    await Promise.all(toDelete.map(f => base44.entities.Flashcard.delete(f.id)));
+    queryClient.invalidateQueries({ queryKey: ["flashcards", chapter.id] });
+    saveStoredDecks(storedDecks.filter(d => d !== deckName));
+    if (selectedDeck === deckName) {
+      const remaining = storedDecks.filter(d => d !== deckName);
+      setSelectedDeck(remaining[0] ?? null);
+    }
+    setConfirmDeleteDeck(null);
+    toast.success(`Deck "${deckName}" deleted`);
   };
 
   const addFlashcard = async () => {
@@ -1020,7 +1152,6 @@ ${context}`;
       front: newFront.trim(),
       back: newBack.trim(),
     });
-    setPendingDecks(d => d.filter(n => n !== selectedDeck));
     queryClient.invalidateQueries({ queryKey: ["flashcards", chapter.id] });
     setNewFront(""); setNewBack(""); setShowAddCard(false);
     toast.success("Flashcard added!");
@@ -1029,6 +1160,8 @@ ${context}`;
   const deleteCard = async (id) => {
     await base44.entities.Flashcard.delete(id);
     queryClient.invalidateQueries({ queryKey: ["flashcards", chapter.id] });
+    setConfirmDeleteCard(false);
+    setConfirmDeleteCardFinal(false);
   };
 
   const currentCard = deckCards[currentIndex] ?? null;
@@ -1085,14 +1218,34 @@ ${context}`;
           <div className="px-4 pt-4 pb-0 flex-shrink-0">
             <div className="flex items-center gap-2 flex-wrap">
               {decks.map(deck => (
-                <button key={deck} onClick={() => setSelectedDeck(deck)}
-                  className={cn("px-4 py-1.5 rounded-xl text-sm font-medium transition",
-                    selectedDeck === deck
-                      ? "bg-emerald-600 text-white shadow-sm"
-                      : "bg-white border border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-600"
-                  )}>
-                  {deck}
-                </button>
+                <div key={deck} className="relative group flex items-center">
+                  {confirmDeleteDeck === deck ? (
+                    <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-red-50 border border-red-200">
+                      <span className="text-xs text-red-600 font-medium">Delete "{deck}"?</span>
+                      <button onClick={() => deleteDeck(deck)} className="px-1.5 py-0.5 rounded-lg bg-red-500 text-white text-xs font-semibold hover:bg-red-600 transition">Yes</button>
+                      <button onClick={() => setConfirmDeleteDeck(null)} className="px-1.5 py-0.5 rounded-lg bg-white text-slate-600 text-xs font-semibold hover:bg-slate-100 border border-slate-200 transition">No</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setSelectedDeck(deck)}
+                      className={cn("pl-4 pr-2 py-1.5 rounded-xl text-sm font-medium transition flex items-center gap-1.5",
+                        selectedDeck === deck
+                          ? "bg-emerald-600 text-white shadow-sm"
+                          : "bg-white border border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-600"
+                      )}>
+                      {deck}
+                      <span
+                        onClick={(e) => { e.stopPropagation(); setConfirmDeleteDeck(deck); }}
+                        className={cn("rounded-full p-0.5 transition",
+                          selectedDeck === deck
+                            ? "opacity-60 hover:opacity-100 hover:bg-emerald-700"
+                            : "opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:bg-slate-200"
+                        )}
+                      >
+                        <X className="w-3 h-3" />
+                      </span>
+                    </button>
+                  )}
+                </div>
               ))}
               {showNewDeck ? (
                 <div className="flex gap-2 items-center">
@@ -1209,17 +1362,17 @@ ${context}`;
                           }}
                         >
                           <div style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
-                            className="absolute inset-0 bg-white rounded-3xl border-2 border-slate-200 shadow-xl flex flex-col items-center justify-center p-8 text-center">
-                            <span className="text-xs font-semibold text-slate-300 uppercase tracking-widest mb-4">Term</span>
-                            <p className="text-xl font-bold text-slate-800 leading-snug">{currentCard.front}</p>
+                            className="absolute inset-0 bg-white rounded-3xl border-2 border-slate-200 shadow-xl flex flex-col items-center justify-center p-6 text-center overflow-hidden">
+                            <span className="text-xs font-semibold text-slate-300 uppercase tracking-widest mb-3 flex-shrink-0">Term</span>
+                            <p className="font-bold text-slate-800 leading-snug w-full max-h-[150px] overflow-y-auto" style={{ fontSize: "clamp(0.65rem, 3.5vw, 1.25rem)" }}>{currentCard.front}</p>
                             <span className="absolute bottom-5 text-xs text-slate-300 flex items-center gap-1.5">
                               <RotateCcw className="w-3 h-3" /> Tap to flip
                             </span>
                           </div>
                           <div style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
-                            className="absolute inset-0 bg-emerald-600 rounded-3xl shadow-xl flex flex-col items-center justify-center p-8 text-center">
-                            <span className="text-xs font-semibold text-emerald-300 uppercase tracking-widest mb-4">Answer</span>
-                            <p className="text-lg font-semibold text-white leading-relaxed">{currentCard.back}</p>
+                            className="absolute inset-0 bg-emerald-600 rounded-3xl shadow-xl flex flex-col items-center justify-center p-6 text-center overflow-hidden">
+                            <span className="text-xs font-semibold text-emerald-300 uppercase tracking-widest mb-3 flex-shrink-0">Answer</span>
+                            <p className="font-semibold text-white leading-relaxed w-full max-h-[150px] overflow-y-auto" style={{ fontSize: "clamp(0.6rem, 3vw, 1.1rem)" }}>{currentCard.back}</p>
                             <span className="absolute bottom-5 text-xs text-emerald-300 flex items-center gap-1.5">
                               <RotateCcw className="w-3 h-3" /> Tap to flip back
                             </span>
@@ -1245,10 +1398,28 @@ ${context}`;
                 </div>
               )}
               <div className="flex items-center gap-4 mt-5">
-                <button onClick={() => deleteCard(currentCard.id)}
-                  className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-red-400 transition px-3 py-1.5 rounded-xl hover:bg-red-50">
-                  <Trash2 className="w-3.5 h-3.5" />Delete card
-                </button>
+                {confirmDeleteCardFinal ? (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-red-600 font-semibold">This is permanent.</span>
+                    <button onClick={() => deleteCard(currentCard.id)}
+                      className="px-2.5 py-1 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition">Confirm</button>
+                    <button onClick={() => { setConfirmDeleteCardFinal(false); setConfirmDeleteCard(false); }}
+                      className="px-2.5 py-1 rounded-xl bg-slate-100 text-slate-600 text-xs font-semibold hover:bg-slate-200 transition">Cancel</button>
+                  </div>
+                ) : confirmDeleteCard ? (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-red-500 font-medium">Delete this card?</span>
+                    <button onClick={() => setConfirmDeleteCardFinal(true)}
+                      className="px-2.5 py-1 rounded-xl bg-red-500 text-white text-xs font-semibold hover:bg-red-600 transition">Yes</button>
+                    <button onClick={() => setConfirmDeleteCard(false)}
+                      className="px-2.5 py-1 rounded-xl bg-slate-100 text-slate-600 text-xs font-semibold hover:bg-slate-200 transition">No</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setConfirmDeleteCard(true)}
+                    className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-red-400 transition px-3 py-1.5 rounded-xl hover:bg-red-50">
+                    <Trash2 className="w-3.5 h-3.5" />Delete card
+                  </button>
+                )}
                 <span className="text-xs text-slate-300">← → to navigate · Space to flip</span>
               </div>
             </div>
