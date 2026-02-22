@@ -332,6 +332,7 @@ function ChapterSectionsView({ chapter, onBack, onOpenSection }) {
 
 const getSummaryAIKey    = (chapterId) => `${getUserPrefix()}accountable_summary_ai_${chapterId}`;
 const getObjectivesAIKey = (chapterId) => `${getUserPrefix()}accountable_objectives_ai_${chapterId}`;
+const getFlashcardsAIKey = (chapterId) => `${getUserPrefix()}accountable_flashcards_ai_${chapterId}`;
 
 async function callSummaryAI(messages, systemPrompt) {
   const response = await fetch("/api/claude", {
@@ -356,6 +357,22 @@ async function callObjectivesAI(messages, systemPrompt) {
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
       max_tokens: 1500,
+      system: systemPrompt,
+      messages: messages.map(m => ({ role: m.role, content: m.content })),
+    }),
+  });
+  if (!response.ok) throw new Error(`API error ${response.status}`);
+  const data = await response.json();
+  return data.content?.find(b => b.type === "text")?.text ?? "";
+}
+
+async function callFlashcardsAI(messages, systemPrompt) {
+  const response = await fetch("/api/claude", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: 2000,
       system: systemPrompt,
       messages: messages.map(m => ({ role: m.role, content: m.content })),
     }),
@@ -823,6 +840,18 @@ function FlashcardsView({ chapter, onBack }) {
     enabled: !!chapter.id,
   });
 
+  const { data: summaryEntries = [] } = useQuery({
+    queryKey: ["summaryEntries", chapter.id],
+    queryFn: () => base44.entities.ChapterSummaryEntry.filter({ chapter_id: chapter.id }, "created_at"),
+    enabled: !!chapter.id,
+  });
+
+  const { data: objectives = [] } = useQuery({
+    queryKey: ["objectives", chapter.id],
+    queryFn: () => base44.entities.LearningObjective.filter({ chapter_id: chapter.id }, "created_at"),
+    enabled: !!chapter.id,
+  });
+
   useEffect(() => {
     const unsub = base44.entities.Flashcard.subscribe(() =>
       queryClient.invalidateQueries({ queryKey: ["flashcards", chapter.id] })
@@ -830,7 +859,7 @@ function FlashcardsView({ chapter, onBack }) {
     return unsub;
   }, [chapter.id]);
 
-  const [pendingDecks, setPendingDecks] = useState([]); // newly created decks before any card is added
+  const [pendingDecks, setPendingDecks] = useState([]);
   const decks = [...new Set([...pendingDecks, ...flashcards.map(f => f.deck_name)])];
 
   const [selectedDeck, setSelectedDeck] = useState(null);
@@ -839,13 +868,27 @@ function FlashcardsView({ chapter, onBack }) {
   const [showAddCard, setShowAddCard]   = useState(false);
   const [newFront, setNewFront]         = useState("");
   const [newBack, setNewBack]           = useState("");
+  const [mobilePanel, setMobilePanel]   = useState("cards");
 
   // Swipe / flip state
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped]       = useState(false);
   const [swipeDir, setSwipeDir]         = useState(1);
-  const wasDragging = useRef(false); // prevent flip-on-drag-release
-  const mouseDownTime = useRef(null); // prevent flip-on-hold
+  const wasDragging   = useRef(false);
+  const mouseDownTime = useRef(null);
+
+  // AI chat state
+  const fcChatKey = getFlashcardsAIKey(chapter.id);
+  const [aiMessages, setAiMessages] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(fcChatKey) || "[]"); } catch { return []; }
+  });
+  const [aiInput, setAiInput]     = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [aiMessages]);
 
   // Auto-select first deck
   useEffect(() => {
@@ -854,13 +897,8 @@ function FlashcardsView({ chapter, onBack }) {
 
   const deckCards = selectedDeck ? flashcards.filter(f => f.deck_name === selectedDeck) : [];
 
-  // Reset position when deck changes
-  useEffect(() => {
-    setCurrentIndex(0);
-    setIsFlipped(false);
-  }, [selectedDeck]);
+  useEffect(() => { setCurrentIndex(0); setIsFlipped(false); }, [selectedDeck]);
 
-  // Clamp index after deletion
   useEffect(() => {
     if (deckCards.length > 0 && currentIndex >= deckCards.length) {
       setCurrentIndex(deckCards.length - 1);
@@ -870,25 +908,16 @@ function FlashcardsView({ chapter, onBack }) {
 
   const goNext = () => {
     if (deckCards.length < 2) return;
-    setSwipeDir(1);
-    setIsFlipped(false);
+    setSwipeDir(1); setIsFlipped(false);
     setCurrentIndex(i => (i + 1) % deckCards.length);
   };
-
   const goPrev = () => {
     if (deckCards.length < 2) return;
-    setSwipeDir(-1);
-    setIsFlipped(false);
+    setSwipeDir(-1); setIsFlipped(false);
     setCurrentIndex(i => (i - 1 + deckCards.length) % deckCards.length);
   };
+  const jumpTo = (i) => { setSwipeDir(i > currentIndex ? 1 : -1); setCurrentIndex(i); setIsFlipped(false); };
 
-  const jumpTo = (i) => {
-    setSwipeDir(i > currentIndex ? 1 : -1);
-    setCurrentIndex(i);
-    setIsFlipped(false);
-  };
-
-  // Keyboard shortcuts
   useEffect(() => {
     const handler = (e) => {
       if (showAddCard) return;
@@ -899,6 +928,79 @@ function FlashcardsView({ chapter, onBack }) {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [currentIndex, deckCards.length, showAddCard]);
+
+  const buildSystemPrompt = () => {
+    const summaryText   = summaryEntries.map(e => e.content).join("\n\n");
+    const objectiveText = objectives.map(o => `- ${o.content}`).join("\n");
+    const existingCards = flashcards.map(f => `- Q: ${f.front} | A: ${f.back}`).join("\n");
+
+    const context = [
+      summaryText   && `CHAPTER SUMMARY:\n${summaryText}`,
+      objectiveText && `LEARNING OBJECTIVES:\n${objectiveText}`,
+      existingCards && `EXISTING FLASHCARDS (avoid duplicates):\n${existingCards}`,
+    ].filter(Boolean).join("\n\n") || "No study material added yet for this chapter.";
+
+    return `You are an expert flashcard creator helping a student study "${chapter.name}". Your job is to create high-quality flashcards that promote active recall and long-term retention.
+
+When creating flashcards:
+- One concept per card — keep it atomic and focused
+- Front: a clear question, term, or prompt that tests recall (e.g. "What is...", "Define...", "How does... work?")
+- Back: a concise, accurate answer (1–3 sentences max) — the student should know immediately if they got it right
+- Cover a mix of: definitions, processes, comparisons, causes/effects, examples
+- Avoid yes/no questions and vague prompts like "Explain everything about X"
+- Do NOT duplicate any card already in the existing flashcards list
+
+When you suggest flashcards the student should add, format each one exactly like this so they can be added with one click:
+<FLASHCARD front="The question or term" back="The answer or definition" />
+
+You can suggest individual cards, generate batches from the material, answer questions about the content, or help the student identify gaps in their card set. If the student specifies a deck name, acknowledge it in your reply.
+
+Current chapter material:
+${context}`;
+  };
+
+  // Parse <FLASHCARD front="..." back="..." /> tags from AI responses
+  const parseFlashcardBlocks = (text) => {
+    const parts = [];
+    const re = /<FLASHCARD\s+front="([^"]*?)"\s+back="([^"]*?)"\s*\/?>/gi;
+    let last = 0, m;
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > last) parts.push({ type: "text", content: text.slice(last, m.index) });
+      parts.push({ type: "flashcard", front: m[1].trim(), back: m[2].trim() });
+      last = re.lastIndex;
+    }
+    if (last < text.length) parts.push({ type: "text", content: text.slice(last) });
+    return parts;
+  };
+
+  const addFlashcardFromAI = async (front, back) => {
+    const deck = selectedDeck || decks[0];
+    if (!deck) { toast.error("Create or select a deck first"); return; }
+    await base44.entities.Flashcard.create({ chapter_id: chapter.id, deck_name: deck, front, back });
+    setPendingDecks(d => d.filter(n => n !== deck));
+    queryClient.invalidateQueries({ queryKey: ["flashcards", chapter.id] });
+    toast.success("Flashcard added to " + deck + "!");
+  };
+
+  const sendAiMessage = async (content) => {
+    if (!content.trim() || aiLoading) return;
+    const userMsg = { role: "user", content: content.trim() };
+    const updated = [...aiMessages, userMsg];
+    setAiMessages(updated);
+    setAiInput("");
+    localStorage.setItem(fcChatKey, JSON.stringify(updated.slice(-60)));
+    setAiLoading(true);
+    try {
+      const reply = await callFlashcardsAI(updated, buildSystemPrompt());
+      const withReply = [...updated, { role: "assistant", content: reply }];
+      setAiMessages(withReply);
+      localStorage.setItem(fcChatKey, JSON.stringify(withReply.slice(-60)));
+    } catch {
+      toast.error("AI failed to respond. Please try again.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const createDeck = () => {
     if (!newDeckName.trim()) return;
@@ -920,9 +1022,7 @@ function FlashcardsView({ chapter, onBack }) {
     });
     setPendingDecks(d => d.filter(n => n !== selectedDeck));
     queryClient.invalidateQueries({ queryKey: ["flashcards", chapter.id] });
-    setNewFront("");
-    setNewBack("");
-    setShowAddCard(false);
+    setNewFront(""); setNewBack(""); setShowAddCard(false);
     toast.success("Flashcard added!");
   };
 
@@ -931,240 +1031,348 @@ function FlashcardsView({ chapter, onBack }) {
     queryClient.invalidateQueries({ queryKey: ["flashcards", chapter.id] });
   };
 
-  // Safe current card — never null when rendering swipe area
   const currentCard = deckCards[currentIndex] ?? null;
+
+  const quickPrompts = [
+    "Generate flashcards from the summary",
+    "Generate flashcards from the learning objectives",
+    "What key terms should I have flashcards for?",
+    "Make 5 flashcards covering the hardest concepts",
+  ];
 
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-50">
       {/* Header */}
-      <div className="bg-white border-b border-slate-100 px-6 py-4 flex items-center gap-4 flex-shrink-0">
+      <div className="bg-white border-b border-slate-100 px-4 py-4 flex items-center gap-3 flex-shrink-0">
         <button onClick={onBack} className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition">
           <ArrowLeft className="w-4 h-4" />
         </button>
-        <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
-          <CreditCard className="w-5 h-5 text-emerald-500" />
+        <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
+          <CreditCard className="w-4 h-4 text-emerald-500" />
         </div>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <h2 className="text-base font-bold text-slate-800">Flashcards</h2>
-          <p className="text-xs text-slate-400">{chapter.name}</p>
+          <p className="text-xs text-slate-400 truncate">{chapter.name}</p>
         </div>
         {!showAddCard && selectedDeck && (
           <Button onClick={() => setShowAddCard(true)} size="sm" variant="outline"
-            className="rounded-xl border-emerald-300 text-emerald-600 hover:bg-emerald-50 flex-shrink-0">
-            <Plus className="w-3.5 h-3.5 mr-1" />
-            Add Card
+            className="rounded-xl border-emerald-300 text-emerald-600 hover:bg-emerald-50 flex-shrink-0 hidden md:flex">
+            <Plus className="w-3.5 h-3.5 mr-1" />Add Card
           </Button>
         )}
+        {/* Mobile panel toggle */}
+        <div className="flex md:hidden bg-slate-100 rounded-xl p-0.5 flex-shrink-0">
+          {[["cards", "Cards"], ["ai", "✨ AI"]].map(([id, label]) => (
+            <button key={id} onClick={() => setMobilePanel(id)}
+              className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition",
+                mobilePanel === id ? "bg-white text-slate-800 shadow-sm" : "text-slate-500"
+              )}>
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Deck tabs */}
-        <div className="px-6 pt-4 pb-0 flex-shrink-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            {decks.map(deck => (
-              <button key={deck} onClick={() => setSelectedDeck(deck)}
-                className={cn("px-4 py-1.5 rounded-xl text-sm font-medium transition",
-                  selectedDeck === deck
-                    ? "bg-emerald-600 text-white shadow-sm"
-                    : "bg-white border border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-600"
-                )}>
-                {deck}
-              </button>
-            ))}
+      {/* Two-panel body */}
+      <div className="flex-1 flex overflow-hidden">
 
-            {showNewDeck ? (
-              <div className="flex gap-2 items-center">
-                <Input autoFocus value={newDeckName} onChange={e => setNewDeckName(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter") createDeck(); if (e.key === "Escape") setShowNewDeck(false); }}
-                  placeholder="Deck name" className="rounded-xl h-8 w-36 text-sm" />
-                <Button size="sm" onClick={createDeck} className="rounded-xl bg-emerald-600 hover:bg-emerald-700 h-8 text-xs px-3">Create</Button>
-                <Button size="sm" variant="outline" onClick={() => { setShowNewDeck(false); setNewDeckName(""); }} className="rounded-xl h-8 text-xs px-3">✕</Button>
-              </div>
-            ) : (
-              <button onClick={() => setShowNewDeck(true)}
-                className="px-3 py-1.5 rounded-xl text-sm border border-dashed border-slate-300 text-slate-400 hover:border-emerald-400 hover:text-emerald-600 transition flex items-center gap-1">
-                <Plus className="w-3.5 h-3.5" />New Deck
-              </button>
-            )}
+        {/* LEFT — Flashcard viewer */}
+        <div className={cn(
+          "flex-1 flex flex-col overflow-hidden",
+          mobilePanel !== "cards" ? "hidden md:flex" : "flex"
+        )}>
+          {/* Deck tabs */}
+          <div className="px-4 pt-4 pb-0 flex-shrink-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              {decks.map(deck => (
+                <button key={deck} onClick={() => setSelectedDeck(deck)}
+                  className={cn("px-4 py-1.5 rounded-xl text-sm font-medium transition",
+                    selectedDeck === deck
+                      ? "bg-emerald-600 text-white shadow-sm"
+                      : "bg-white border border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-600"
+                  )}>
+                  {deck}
+                </button>
+              ))}
+              {showNewDeck ? (
+                <div className="flex gap-2 items-center">
+                  <Input autoFocus value={newDeckName} onChange={e => setNewDeckName(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") createDeck(); if (e.key === "Escape") setShowNewDeck(false); }}
+                    placeholder="Deck name" className="rounded-xl h-8 w-36 text-sm" />
+                  <Button size="sm" onClick={createDeck} className="rounded-xl bg-emerald-600 hover:bg-emerald-700 h-8 text-xs px-3">Create</Button>
+                  <Button size="sm" variant="outline" onClick={() => { setShowNewDeck(false); setNewDeckName(""); }} className="rounded-xl h-8 text-xs px-3">✕</Button>
+                </div>
+              ) : (
+                <button onClick={() => setShowNewDeck(true)}
+                  className="px-3 py-1.5 rounded-xl text-sm border border-dashed border-slate-300 text-slate-400 hover:border-emerald-400 hover:text-emerald-600 transition flex items-center gap-1">
+                  <Plus className="w-3.5 h-3.5" />New Deck
+                </button>
+              )}
+            </div>
           </div>
+
+          {/* Add card form */}
+          {showAddCard && (
+            <div className="mx-4 mt-4 bg-white rounded-2xl border border-slate-200 p-5 space-y-4 flex-shrink-0">
+              <h3 className="text-sm font-semibold text-slate-700">Add flashcard to "{selectedDeck}"</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-slate-500 mb-1.5 block">Front (Term / Question)</label>
+                  <textarea autoFocus value={newFront} onChange={e => setNewFront(e.target.value)}
+                    placeholder="e.g. Mitosis" rows={3}
+                    className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 placeholder:text-slate-300" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-slate-500 mb-1.5 block">Back (Definition / Answer)</label>
+                  <textarea value={newBack} onChange={e => setNewBack(e.target.value)}
+                    placeholder="e.g. Cell division producing two identical daughter cells" rows={3}
+                    className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 placeholder:text-slate-300" />
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => { setShowAddCard(false); setNewFront(""); setNewBack(""); }} className="rounded-xl">Cancel</Button>
+                <Button onClick={addFlashcard} disabled={!newFront.trim() || !newBack.trim()} className="rounded-xl bg-emerald-600 hover:bg-emerald-700">Add Flashcard</Button>
+              </div>
+            </div>
+          )}
+
+          {/* Card area */}
+          {!selectedDeck ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-3">
+                  <CreditCard className="w-7 h-7 text-emerald-200" />
+                </div>
+                <p className="text-slate-500 font-medium">No decks yet</p>
+                <p className="text-sm text-slate-400 mt-1">Create a deck or ask the AI to generate cards</p>
+              </div>
+            </div>
+          ) : deckCards.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-3">
+                  <CreditCard className="w-7 h-7 text-emerald-200" />
+                </div>
+                <p className="text-slate-500 font-medium">No cards in this deck yet</p>
+                <p className="text-sm text-slate-400 mt-1 mb-4">Add manually or ask the AI to generate some</p>
+                <Button onClick={() => setShowAddCard(true)} className="rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5">
+                  <Plus className="w-4 h-4 mr-1.5" />Add Flashcard
+                </Button>
+              </div>
+            </div>
+          ) : !currentCard ? null : (
+            <div className="flex-1 flex flex-col items-center justify-center px-4 py-4 select-none">
+              <p className="text-xs text-slate-400 font-medium mb-4 tracking-wide">
+                {currentIndex + 1} / {deckCards.length}
+              </p>
+              <div className="relative w-full max-w-sm flex items-center justify-center">
+                <button onClick={goPrev} disabled={deckCards.length <= 1}
+                  className="absolute left-0 z-10 p-2.5 rounded-full bg-white border border-slate-200 text-slate-500 hover:border-emerald-300 hover:text-emerald-600 shadow-sm transition disabled:opacity-30">
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <div className="w-full px-14 overflow-hidden">
+                  <AnimatePresence custom={swipeDir} mode="wait">
+                    <motion.div
+                      key={currentCard.id}
+                      custom={swipeDir}
+                      initial={{ x: swipeDir > 0 ? 280 : -280, opacity: 0, scale: 0.94 }}
+                      animate={{ x: 0, opacity: 1, scale: 1 }}
+                      exit={{ x: swipeDir > 0 ? -280 : 280, opacity: 0, scale: 0.94 }}
+                      transition={{ type: "spring", stiffness: 320, damping: 32 }}
+                      drag="x"
+                      dragConstraints={{ left: 0, right: 0 }}
+                      dragElastic={0.12}
+                      onDragStart={() => { wasDragging.current = false; }}
+                      onDragEnd={(_, info) => {
+                        if (Math.abs(info.offset.x) > 8) wasDragging.current = true;
+                        if (info.offset.x < -SWIPE_THRESHOLD) goNext();
+                        else if (info.offset.x > SWIPE_THRESHOLD) goPrev();
+                      }}
+                      style={{ touchAction: "none" }}
+                    >
+                      <div style={{ perspective: "1000px" }}>
+                        <div
+                          onMouseDown={() => { mouseDownTime.current = Date.now(); }}
+                          onTouchStart={() => { mouseDownTime.current = Date.now(); }}
+                          onClick={() => {
+                            const held = mouseDownTime.current && (Date.now() - mouseDownTime.current) > 200;
+                            mouseDownTime.current = null;
+                            if (!wasDragging.current && !held) setIsFlipped(f => !f);
+                          }}
+                          style={{
+                            transformStyle: "preserve-3d",
+                            transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
+                            transition: "transform 0.52s cubic-bezier(0.4, 0, 0.2, 1)",
+                            position: "relative",
+                            height: "260px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <div style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
+                            className="absolute inset-0 bg-white rounded-3xl border-2 border-slate-200 shadow-xl flex flex-col items-center justify-center p-8 text-center">
+                            <span className="text-xs font-semibold text-slate-300 uppercase tracking-widest mb-4">Term</span>
+                            <p className="text-xl font-bold text-slate-800 leading-snug">{currentCard.front}</p>
+                            <span className="absolute bottom-5 text-xs text-slate-300 flex items-center gap-1.5">
+                              <RotateCcw className="w-3 h-3" /> Tap to flip
+                            </span>
+                          </div>
+                          <div style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
+                            className="absolute inset-0 bg-emerald-600 rounded-3xl shadow-xl flex flex-col items-center justify-center p-8 text-center">
+                            <span className="text-xs font-semibold text-emerald-300 uppercase tracking-widest mb-4">Answer</span>
+                            <p className="text-lg font-semibold text-white leading-relaxed">{currentCard.back}</p>
+                            <span className="absolute bottom-5 text-xs text-emerald-300 flex items-center gap-1.5">
+                              <RotateCcw className="w-3 h-3" /> Tap to flip back
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+                <button onClick={goNext} disabled={deckCards.length <= 1}
+                  className="absolute right-0 z-10 p-2.5 rounded-full bg-white border border-slate-200 text-slate-500 hover:border-emerald-300 hover:text-emerald-600 shadow-sm transition disabled:opacity-30">
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+              {deckCards.length <= 12 && (
+                <div className="flex gap-1.5 mt-6">
+                  {deckCards.map((_, i) => (
+                    <button key={i} onClick={() => jumpTo(i)}
+                      className={cn("rounded-full transition-all duration-200",
+                        i === currentIndex ? "w-5 h-2 bg-emerald-500" : "w-2 h-2 bg-slate-300 hover:bg-slate-400"
+                      )} />
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center gap-4 mt-5">
+                <button onClick={() => deleteCard(currentCard.id)}
+                  className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-red-400 transition px-3 py-1.5 rounded-xl hover:bg-red-50">
+                  <Trash2 className="w-3.5 h-3.5" />Delete card
+                </button>
+                <span className="text-xs text-slate-300">← → to navigate · Space to flip</span>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Add card form */}
-        {showAddCard && (
-          <div className="mx-6 mt-4 bg-white rounded-2xl border border-slate-200 p-5 space-y-4 flex-shrink-0">
-            <h3 className="text-sm font-semibold text-slate-700">Add flashcard to "{selectedDeck}"</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-medium text-slate-500 mb-1.5 block">Front (Term / Question)</label>
-                <textarea autoFocus value={newFront} onChange={e => setNewFront(e.target.value)}
-                  placeholder="e.g. Mitosis" rows={3}
-                  className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 placeholder:text-slate-300" />
+        {/* RIGHT — AI Chat */}
+        <div className={cn(
+          "w-full md:w-96 border-l border-slate-100 bg-white flex flex-col flex-shrink-0",
+          mobilePanel !== "ai" ? "hidden md:flex" : "flex"
+        )}>
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+            {aiMessages.length === 0 ? (
+              <div className="space-y-3 pt-4">
+                <div className="text-center py-6">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-2">
+                    <Sparkles className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <p className="text-sm font-medium text-slate-700">AI Flashcard Assistant</p>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    Generate flashcards from your summary & objectives, or ask for suggestions
+                  </p>
+                  {selectedDeck && (
+                    <p className="text-xs text-emerald-600 font-medium mt-1.5">
+                      Adding to: <span className="font-bold">{selectedDeck}</span>
+                    </p>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 gap-2">
+                  {quickPrompts.map(q => (
+                    <button key={q} onClick={() => sendAiMessage(q)}
+                      className="text-left text-xs px-3 py-2.5 rounded-xl border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 transition bg-white">
+                      {q}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div>
-                <label className="text-xs font-medium text-slate-500 mb-1.5 block">Back (Definition / Answer)</label>
-                <textarea value={newBack} onChange={e => setNewBack(e.target.value)}
-                  placeholder="e.g. Cell division producing two identical daughter cells" rows={3}
-                  className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 placeholder:text-slate-300" />
+            ) : (
+              aiMessages.map((msg, i) => (
+                <div key={i} className={cn("flex gap-2", msg.role === "user" ? "justify-end" : "justify-start")}>
+                  {msg.role === "assistant" && (
+                    <div className="w-7 h-7 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0 mt-1">
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                    </div>
+                  )}
+                  <div className={cn(
+                    "max-w-[85%] rounded-2xl text-sm leading-relaxed",
+                    msg.role === "user"
+                      ? "bg-emerald-600 text-white rounded-tr-sm px-3 py-2.5 whitespace-pre-wrap"
+                      : "bg-white text-slate-800 rounded-tl-sm shadow-sm border border-slate-100 overflow-hidden"
+                  )}>
+                    {msg.role === "assistant" ? (
+                      <div className="p-3 space-y-2">
+                        {parseFlashcardBlocks(msg.content).map((part, pi) =>
+                          part.type === "text" ? (
+                            <p key={pi} className="whitespace-pre-wrap text-slate-800 leading-relaxed">{part.content}</p>
+                          ) : (
+                            <div key={pi} className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 space-y-1.5">
+                              <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wide">Suggested flashcard</p>
+                              <p className="text-xs font-semibold text-slate-700">Q: {part.front}</p>
+                              <p className="text-xs text-slate-600">A: {part.back}</p>
+                              <button
+                                onClick={() => addFlashcardFromAI(part.front, part.back)}
+                                className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:text-emerald-800 transition mt-1"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                                Add to {selectedDeck || "deck"}
+                              </button>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    ) : (
+                      msg.content
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+            {aiLoading && (
+              <div className="flex gap-2 justify-start">
+                <div className="w-7 h-7 rounded-xl bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                  <Loader2 className="w-3.5 h-3.5 text-emerald-600 animate-spin" />
+                </div>
+                <div className="bg-white rounded-2xl rounded-tl-sm shadow-sm border border-slate-100 px-4 py-3">
+                  <div className="flex gap-1">
+                    <span className="w-1.5 h-1.5 bg-emerald-300 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="w-1.5 h-1.5 bg-emerald-300 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="w-1.5 h-1.5 bg-emerald-300 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => { setShowAddCard(false); setNewFront(""); setNewBack(""); }} className="rounded-xl">Cancel</Button>
-              <Button onClick={addFlashcard} disabled={!newFront.trim() || !newBack.trim()} className="rounded-xl bg-emerald-600 hover:bg-emerald-700">Add Flashcard</Button>
-            </div>
+            )}
+            <div ref={messagesEndRef} />
           </div>
-        )}
 
-        {/* ── Card area ── */}
-        {!selectedDeck ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-3">
-                <CreditCard className="w-7 h-7 text-emerald-200" />
-              </div>
-              <p className="text-slate-500 font-medium">No decks yet</p>
-              <p className="text-sm text-slate-400 mt-1">Create a deck to start adding flashcards</p>
-            </div>
-          </div>
-        ) : deckCards.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-3">
-                <CreditCard className="w-7 h-7 text-emerald-200" />
-              </div>
-              <p className="text-slate-500 font-medium">No cards in this deck yet</p>
-              <p className="text-sm text-slate-400 mt-1 mb-4">Add your first flashcard to get started</p>
+          {/* Input */}
+          <div className="bg-white border-t border-slate-100 px-4 py-4 flex-shrink-0">
+            {selectedDeck && (
+              <p className="text-xs text-slate-400 mb-2">
+                Cards will be added to <span className="font-semibold text-emerald-600">{selectedDeck}</span>
+              </p>
+            )}
+            <div className="flex gap-2 items-end">
+              <textarea
+                value={aiInput}
+                onChange={e => setAiInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendAiMessage(aiInput); } }}
+                placeholder="Ask AI to generate flashcards…"
+                rows={1}
+                className="flex-1 resize-none rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 placeholder:text-slate-300 max-h-28 overflow-y-auto"
+              />
               <Button
-                onClick={() => setShowAddCard(true)}
-                className="rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5"
+                onClick={() => sendAiMessage(aiInput)}
+                disabled={!aiInput.trim() || aiLoading}
+                className="rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3 self-end h-10 flex-shrink-0"
               >
-                <Plus className="w-4 h-4 mr-1.5" />
-                Add Flashcard
+                {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               </Button>
             </div>
           </div>
-        ) : !currentCard ? null : (
-          <div className="flex-1 flex flex-col items-center justify-center px-4 py-4 select-none">
-            {/* Counter */}
-            <p className="text-xs text-slate-400 font-medium mb-4 tracking-wide">
-              {currentIndex + 1} / {deckCards.length}
-            </p>
+        </div>
 
-            {/* Swipe area */}
-            <div className="relative w-full max-w-sm flex items-center justify-center">
-              {/* Prev */}
-              <button onClick={goPrev} disabled={deckCards.length <= 1}
-                className="absolute left-0 z-10 p-2.5 rounded-full bg-white border border-slate-200 text-slate-500 hover:border-emerald-300 hover:text-emerald-600 shadow-sm transition disabled:opacity-30">
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-
-              {/* Card slide wrapper */}
-              <div className="w-full px-14 overflow-hidden">
-                <AnimatePresence custom={swipeDir} mode="wait">
-                  <motion.div
-                    key={currentCard.id}
-                    custom={swipeDir}
-                    initial={{ x: swipeDir > 0 ? 280 : -280, opacity: 0, scale: 0.94 }}
-                    animate={{ x: 0, opacity: 1, scale: 1 }}
-                    exit={{ x: swipeDir > 0 ? -280 : 280, opacity: 0, scale: 0.94 }}
-                    transition={{ type: "spring", stiffness: 320, damping: 32 }}
-                    drag="x"
-                    dragConstraints={{ left: 0, right: 0 }}
-                    dragElastic={0.12}
-                    onDragStart={() => { wasDragging.current = false; }}
-                    onDragEnd={(_, info) => {
-                      if (Math.abs(info.offset.x) > 8) wasDragging.current = true;
-                      if (info.offset.x < -SWIPE_THRESHOLD) goNext();
-                      else if (info.offset.x > SWIPE_THRESHOLD) goPrev();
-                    }}
-                    style={{ touchAction: "none" }}
-                  >
-                    {/*
-                      Pure-CSS 3-D flip.
-                      The outer div sets perspective.
-                      The inner div rotates on Y axis using a CSS transition — no nested motion.div,
-                      which avoids Framer Motion overwriting the transform and breaking preserve-3d.
-                    */}
-                    <div style={{ perspective: "1000px" }}>
-                      <div
-                        onMouseDown={() => { mouseDownTime.current = Date.now(); }}
-                        onTouchStart={() => { mouseDownTime.current = Date.now(); }}
-                        onClick={() => {
-                          const held = mouseDownTime.current && (Date.now() - mouseDownTime.current) > 200;
-                          mouseDownTime.current = null;
-                          if (!wasDragging.current && !held) setIsFlipped(f => !f);
-                        }}
-                        style={{
-                          transformStyle: "preserve-3d",
-                          transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
-                          transition: "transform 0.52s cubic-bezier(0.4, 0, 0.2, 1)",
-                          position: "relative",
-                          height: "260px",
-                          cursor: "pointer",
-                        }}
-                      >
-                        {/* ── Front face ── */}
-                        <div
-                          style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
-                          className="absolute inset-0 bg-white rounded-3xl border-2 border-slate-200 shadow-xl flex flex-col items-center justify-center p-8 text-center"
-                        >
-                          <span className="text-xs font-semibold text-slate-300 uppercase tracking-widest mb-4">Term</span>
-                          <p className="text-xl font-bold text-slate-800 leading-snug">{currentCard.front}</p>
-                          <span className="absolute bottom-5 text-xs text-slate-300 flex items-center gap-1.5">
-                            <RotateCcw className="w-3 h-3" /> Tap to flip
-                          </span>
-                        </div>
-
-                        {/* ── Back face ── */}
-                        <div
-                          style={{
-                            backfaceVisibility: "hidden",
-                            WebkitBackfaceVisibility: "hidden",
-                            transform: "rotateY(180deg)",
-                          }}
-                          className="absolute inset-0 bg-emerald-600 rounded-3xl shadow-xl flex flex-col items-center justify-center p-8 text-center"
-                        >
-                          <span className="text-xs font-semibold text-emerald-300 uppercase tracking-widest mb-4">Answer</span>
-                          <p className="text-lg font-semibold text-white leading-relaxed">{currentCard.back}</p>
-                          <span className="absolute bottom-5 text-xs text-emerald-300 flex items-center gap-1.5">
-                            <RotateCcw className="w-3 h-3" /> Tap to flip back
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-
-              {/* Next */}
-              <button onClick={goNext} disabled={deckCards.length <= 1}
-                className="absolute right-0 z-10 p-2.5 rounded-full bg-white border border-slate-200 text-slate-500 hover:border-emerald-300 hover:text-emerald-600 shadow-sm transition disabled:opacity-30">
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Dot indicators */}
-            {deckCards.length <= 12 && (
-              <div className="flex gap-1.5 mt-6">
-                {deckCards.map((_, i) => (
-                  <button key={i} onClick={() => jumpTo(i)}
-                    className={cn("rounded-full transition-all duration-200",
-                      i === currentIndex ? "w-5 h-2 bg-emerald-500" : "w-2 h-2 bg-slate-300 hover:bg-slate-400"
-                    )} />
-                ))}
-              </div>
-            )}
-
-            {/* Bottom row */}
-            <div className="flex items-center gap-4 mt-5">
-              <button onClick={() => deleteCard(currentCard.id)}
-                className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-red-400 transition px-3 py-1.5 rounded-xl hover:bg-red-50">
-                <Trash2 className="w-3.5 h-3.5" />
-                Delete card
-              </button>
-              <span className="text-xs text-slate-300">← → to navigate · Space to flip</span>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
