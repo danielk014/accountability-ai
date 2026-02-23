@@ -5,25 +5,64 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, Plus, X, Pencil, Check, Sparkles, Upload, File, User, Briefcase, Users, Target, StickyNote, ChevronDown, ChevronUp, LogOut } from "lucide-react";
-import ScreentimeUpload from "@/components/screentime/ScreentimeUpload";
+import { ArrowLeft, Plus, X, Pencil, Check, Sparkles, User, Briefcase, Users, Target, StickyNote, ChevronDown, ChevronUp, LogOut } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "../utils";
 import { useAuth } from "@/lib/AuthContext";
+import BirthdayPicker from "@/components/ui/BirthdayPicker";
+
+function nextBirthdayDate(birthdayStr) {
+  if (!birthdayStr) return null;
+  const today = new Date();
+  const bday = new Date(birthdayStr + "T00:00:00");
+  const thisYear = new Date(today.getFullYear(), bday.getMonth(), bday.getDate());
+  if (thisYear >= today) return thisYear.toISOString().split("T")[0];
+  const nextYear = new Date(today.getFullYear() + 1, bday.getMonth(), bday.getDate());
+  return nextYear.toISOString().split("T")[0];
+}
 
 const TIMEZONES = [
-  "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
-  "America/Anchorage", "America/Adak", "Pacific/Honolulu",
-  "Europe/London", "Europe/Paris", "Europe/Berlin", "Europe/Moscow",
-  "Asia/Dubai", "Asia/Kolkata", "Asia/Bangkok", "Asia/Hong_Kong", "Asia/Tokyo",
-  "Australia/Sydney", "Australia/Melbourne", "Australia/Brisbane",
+  // Americas
+  "America/New_York",
+  "America/Chicago",
+  "America/Denver",
+  "America/Los_Angeles",
+  "America/Anchorage",
+  "Pacific/Honolulu",
+  "America/Sao_Paulo",
+  "America/Argentina/Buenos_Aires",
+  "America/Bogota",
+  "America/Mexico_City",
+  "America/Toronto",
+  "America/Vancouver",
+  // Europe
+  "Europe/London",
+  "Europe/Berlin",
+  "Europe/Moscow",
+  "Europe/Istanbul",
+  // Africa & Middle East
+  "Africa/Cairo",
+  "Asia/Dubai",
+  // Asia
+  "Asia/Kolkata",
+  "Asia/Dhaka",
+  "Asia/Bangkok",
+  "Asia/Singapore",
+  "Asia/Hong_Kong",
+  "Asia/Shanghai",
+  "Asia/Tokyo",
+  "Asia/Seoul",
+  // Pacific
+  "Australia/Sydney",
+  "Australia/Brisbane",
   "Pacific/Auckland",
-];
+  "Pacific/Honolulu",
+].filter((v, i, a) => a.indexOf(v) === i); // deduplicate
 
 const SECTIONS = [
   { key: "context_about", label: "About Me", icon: User, color: "bg-violet-100 text-violet-600", placeholder: "e.g. I'm 28, live in NYC, introvert who loves hiking..." },
   { key: "context_work", label: "Work & Schedule", icon: Briefcase, color: "bg-blue-100 text-blue-600", placeholder: "e.g. I work 9-5 at a startup, Tuesdays are my busiest day..." },
-  { key: "context_goals", label: "Goals & Plans", icon: Target, color: "bg-emerald-100 text-emerald-600", placeholder: "e.g. I want to lose 20lbs by summer, get promoted by Q3..." },
+  { key: "context_goals", label: "Goals & Plans", icon: Target, color: "bg-emerald-100 text-emerald-600", placeholder: "e.g. I want to lose 20kg by summer, get promoted by Q3..." },
   { key: "context_notes", label: "Extra Context", icon: StickyNote, color: "bg-amber-100 text-amber-600", placeholder: "e.g. I struggle with mornings, anxiety about presentations..." },
 ];
 
@@ -98,7 +137,7 @@ function TextSection({ section, items, onAdd, onDelete, onUpdate }) {
   );
 }
 
-function PeopleSection({ items, onAdd, onDelete, onUpdate }) {
+function PeopleSection({ items, onAdd, onDelete, onUpdate, onBirthdayTask }) {
   const [open, setOpen] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: "", relationship: "", birthday: "", interests: "", notes: "" });
@@ -110,12 +149,14 @@ function PeopleSection({ items, onAdd, onDelete, onUpdate }) {
   const handleSave = () => {
     if (!form.name.trim()) return;
     onAdd(JSON.stringify(form));
+    if (form.birthday) onBirthdayTask?.(form.name.trim(), form.birthday);
     setForm({ name: "", relationship: "", birthday: "", interests: "", notes: "" });
     setShowForm(false);
   };
 
   const handleUpdate = (idx) => {
     onUpdate(idx, JSON.stringify(editForm));
+    if (editForm.birthday) onBirthdayTask?.(editForm.name?.trim(), editForm.birthday);
     setEditIdx(null);
   };
 
@@ -144,8 +185,7 @@ function PeopleSection({ items, onAdd, onDelete, onUpdate }) {
                   className="w-full text-sm rounded-xl border border-pink-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-300 bg-white" />
                 <input value={editForm.relationship || ""} onChange={e => setEditForm(f => ({ ...f, relationship: e.target.value }))} placeholder="Relationship"
                   className="w-full text-sm rounded-xl border border-pink-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-300 bg-white" />
-                <input type="date" value={editForm.birthday || ""} onChange={e => setEditForm(f => ({ ...f, birthday: e.target.value }))}
-                    className="w-full text-sm rounded-xl border border-pink-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-300 bg-white" />
+                <BirthdayPicker value={editForm.birthday || ""} onChange={v => setEditForm(f => ({ ...f, birthday: v }))} />
                 <input value={editForm.interests || ""} onChange={e => setEditForm(f => ({ ...f, interests: e.target.value }))} placeholder="Interests"
                   className="w-full text-sm rounded-xl border border-pink-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-300 bg-white" />
                 <textarea value={editForm.notes || ""} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} placeholder="Extra notes" rows={2}
@@ -190,8 +230,7 @@ function PeopleSection({ items, onAdd, onDelete, onUpdate }) {
                 className="w-full text-sm rounded-xl border border-pink-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-300 bg-white" />
               <input value={form.relationship} onChange={e => setForm(f => ({ ...f, relationship: e.target.value }))} placeholder="Relationship (e.g. best friend, mom)"
                 className="w-full text-sm rounded-xl border border-pink-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-300 bg-white" />
-              <input type="date" value={form.birthday} onChange={e => setForm(f => ({ ...f, birthday: e.target.value }))}
-                className="w-full text-sm rounded-xl border border-pink-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-300 bg-white" />
+              <BirthdayPicker value={form.birthday} onChange={v => setForm(f => ({ ...f, birthday: v }))} />
               <input value={form.interests} onChange={e => setForm(f => ({ ...f, interests: e.target.value }))} placeholder="Interests"
                 className="w-full text-sm rounded-xl border border-pink-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-300 bg-white" />
               <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Anything else..." rows={2}
@@ -215,78 +254,6 @@ function PeopleSection({ items, onAdd, onDelete, onUpdate }) {
   );
 }
 
-function FilesSection({ files = [], profile, saveMutation }) {
-  const [open, setOpen] = useState(true);
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = React.useRef(null);
-
-  const handleFileSelect = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsUploading(true);
-    try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      const newFiles = [...files, { name: file.name, url: file_url, uploaded_at: new Date().toISOString() }];
-      if (profile?.id) {
-        await saveMutation.mutateAsync({ context_files: newFiles });
-        toast.success("File uploaded!");
-      }
-    } catch {
-      toast.error("Failed to upload file");
-    } finally {
-      setIsUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
-
-  const handleDelete = (idx) => {
-    const newFiles = files.filter((_, i) => i !== idx);
-    if (profile?.id) {
-      saveMutation.mutate({ context_files: newFiles });
-      toast.success("File removed");
-    }
-  };
-
-  return (
-    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-      <button onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-cyan-100 text-cyan-600">
-            <File className="w-4 h-4" />
-          </div>
-          <div className="text-left">
-            <p className="text-sm font-bold text-slate-800">Context Files</p>
-            <p className="text-xs text-slate-400">{files.length > 0 ? `${files.length} file${files.length === 1 ? "" : "s"}` : "No files yet"}</p>
-          </div>
-        </div>
-        {open ? <ChevronUp className="w-4 h-4 text-slate-300" /> : <ChevronDown className="w-4 h-4 text-slate-300" />}
-      </button>
-      {open && (
-        <div className="px-6 pb-5 space-y-2">
-          {files.map((file, i) => (
-            <div key={i} className="flex items-start gap-2 bg-white border border-cyan-100 rounded-xl px-3 py-2.5 group">
-              <File className="w-4 h-4 text-cyan-600 flex-shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-700 truncate">{file.name}</p>
-                <p className="text-xs text-slate-400">{new Date(file.uploaded_at).toLocaleDateString()}</p>
-              </div>
-              <button onClick={() => handleDelete(i)} className="p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-500 transition flex-shrink-0">
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ))}
-          <button onClick={() => fileInputRef.current?.click()} disabled={isUploading}
-            className="w-full py-2.5 rounded-xl border border-dashed border-cyan-300 text-sm text-cyan-500 hover:bg-cyan-50 disabled:opacity-50 transition flex items-center justify-center gap-1.5">
-            {isUploading ? <><Loader2 className="w-4 h-4 animate-spin" />Uploading...</> : <><Upload className="w-4 h-4" />Upload file</>}
-          </button>
-          <input ref={fileInputRef} type="file" onChange={handleFileSelect} className="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv" />
-          <p className="text-xs text-slate-400 text-center">PDF, Word, Excel, CSV, TXT</p>
-        </div>
-      )}
-    </div>
-  );
-}
 
 function PersonalitySection({ profile, saveMutation }) {
   const [open, setOpen] = useState(true);
@@ -295,11 +262,14 @@ function PersonalitySection({ profile, saveMutation }) {
   const currentPersonality = profile?.ai_personality || "";
 
   const handleSave = () => {
-    if (input.trim() && profile?.id) {
-      saveMutation.mutate({ ai_personality: input.trim() });
-      setIsEditing(false);
-      toast.success("AI personality updated!");
-    }
+    if (!input.trim()) return;
+    saveMutation.mutate({ ai_personality: input.trim() }, {
+      onSuccess: () => {
+        setIsEditing(false);
+        toast.success("AI personality updated!");
+      },
+      onError: () => toast.error("Failed to save. Please try again."),
+    });
   };
 
   return (
@@ -325,7 +295,7 @@ function PersonalitySection({ profile, saveMutation }) {
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity mt-2">
                 <button onClick={() => { setInput(currentPersonality); setIsEditing(true); }}
                   className="p-1 rounded hover:bg-indigo-50 text-slate-400 hover:text-indigo-500 transition"><Pencil className="w-3.5 h-3.5" /></button>
-                <button onClick={() => { if (profile?.id) { saveMutation.mutate({ ai_personality: "" }); toast.success("Cleared!"); } }}
+                <button onClick={() => { saveMutation.mutate({ ai_personality: "" }, { onSuccess: () => toast.success("Cleared!") }); }}
                   className="p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-500 transition"><X className="w-3.5 h-3.5" /></button>
               </div>
             </div>
@@ -385,10 +355,21 @@ export default function Settings() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["profile"] }),
   });
 
-  // Auto-save timezone immediately when changed — no intermediate state that fights re-fetches
-  const handleTimezoneChange = (tz) => {
-    saveMutation.mutate({ timezone: tz });
-    toast.success("Timezone saved!");
+  // Auto-save timezone immediately when changed — fetch fresh profile to avoid stale-closure bugs
+  const handleTimezoneChange = async (tz) => {
+    try {
+      if (!user?.email) return;
+      const freshProfiles = await base44.entities.UserProfile.filter({ created_by: user.email });
+      if (freshProfiles.length > 0) {
+        await base44.entities.UserProfile.update(freshProfiles[0].id, { timezone: tz });
+      } else {
+        await base44.entities.UserProfile.create({ timezone: tz });
+      }
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      toast.success("Timezone saved!");
+    } catch {
+      toast.error("Failed to save timezone. Please try again.");
+    }
   };
 
   const getItems = (key) => profile?.[key] || [];
@@ -406,6 +387,27 @@ export default function Settings() {
 
   const handleDelete = (key, idx) => {
     saveMutation.mutate({ [key]: getItems(key).filter((_, i) => i !== idx) });
+  };
+
+  const birthdayTaskMutation = useMutation({
+    mutationFn: async ({ name, birthday }) => {
+      const scheduledDate = nextBirthdayDate(birthday);
+      if (!scheduledDate) return;
+      const taskName = `${name}'s Birthday 🎂`;
+      const existing = await base44.entities.Task.filter({ name: taskName });
+      if (existing.length > 0) {
+        await base44.entities.Task.update(existing[0].id, { scheduled_date: scheduledDate, scheduled_time: "09:00", frequency: "once", is_active: true });
+      } else {
+        await base44.entities.Task.create({ name: taskName, frequency: "once", scheduled_date: scheduledDate, scheduled_time: "09:00", category: "social", is_active: true });
+      }
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      toast.success(`Birthday added to calendar for ${name}!`);
+    },
+  });
+
+  const handleBirthdayTask = (name, birthday) => {
+    if (!name || !birthday) return;
+    birthdayTaskMutation.mutate({ name, birthday });
   };
 
   const handleSignOut = () => {
@@ -470,9 +472,7 @@ export default function Settings() {
             <h2 className="text-lg font-bold text-slate-900 mb-3">AI Context</h2>
             <p className="text-sm text-slate-500 mb-4">This information helps your AI coach understand you better.</p>
             <div className="space-y-4">
-              <ScreentimeUpload profile={profile} saveMutation={saveMutation} />
               <PersonalitySection profile={profile} saveMutation={saveMutation} />
-              <FilesSection files={profile?.context_files || []} profile={profile} saveMutation={saveMutation} />
               {SECTIONS.map(section => (
                 <TextSection
                   key={section.key}
@@ -488,6 +488,7 @@ export default function Settings() {
                 onAdd={(val) => handleAdd("context_people", val)}
                 onDelete={(idx) => handleDelete("context_people", idx)}
                 onUpdate={(idx, val) => handleUpdate("context_people", idx, val)}
+                onBirthdayTask={handleBirthdayTask}
               />
             </div>
           </div>
