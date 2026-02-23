@@ -85,4 +85,13 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Prevent iOS Safari from auto-zooming when focusing inputs.
+     iOS zooms whenever font-size < 16px; this clamps to 16px on mobile
+     without changing the visual layout on desktop. */
+  @media screen and (max-width: 768px) {
+    input, textarea, select {
+      font-size: 16px !important;
+    }
+  }
 }
