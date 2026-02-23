@@ -986,12 +986,6 @@ function FlashcardsView({ chapter, onBack }) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [aiMessages]);
 
-  // Auto-select first deck if none selected (e.g. after deck deletion)
-  useEffect(() => {
-    if (!selectedDeck && decks.length > 0) {
-      setSelectedDeck(decks[0]);
-    }
-  }, [flashcards, storedDecks]);
 
   // All flashcards for this chapter (single General deck)
   const deckCards = flashcards;
