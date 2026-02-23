@@ -6,6 +6,7 @@ import {
   ArrowLeft, Plus, Trash2, Send, Loader2, Sparkles,
   Check, ChevronRight, ChevronLeft, FileText, CreditCard, Target,
   BookOpen, Pencil, RotateCcw, X, GraduationCap, Paperclip,
+  Play, Pause,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getUserPrefix } from "@/lib/userStore";
@@ -954,38 +955,16 @@ function FlashcardsView({ chapter, onBack }) {
     return unsub;
   }, [chapter.id]);
 
-  // Persist deck names in localStorage so empty decks survive card deletions
-  const [storedDecks, setStoredDecks] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(getDecksStorageKey(chapter.id)) || "[]");
-      if (saved.length === 0) {
-        localStorage.setItem(getDecksStorageKey(chapter.id), JSON.stringify(["General"]));
-        return ["General"];
-      }
-      return saved;
-    } catch { return ["General"]; }
-  });
-  const saveStoredDecks = (list) => {
-    setStoredDecks(list);
-    localStorage.setItem(getDecksStorageKey(chapter.id), JSON.stringify(list));
-  };
-  const decks = [...new Set([...storedDecks, ...flashcards.map(f => f.deck_name)])];
+  // Single "General" deck — no multi-deck management
+  const selectedDeck = "General";
 
-  const [selectedDeck, setSelectedDeck]         = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(getDecksStorageKey(chapter.id)) || "[]");
-      return saved[0] ?? "General";
-    } catch { return "General"; }
-  });
-  const [showNewDeck, setShowNewDeck]           = useState(false);
-  const [newDeckName, setNewDeckName]           = useState("");
   const [showAddCard, setShowAddCard]           = useState(false);
   const [newFront, setNewFront]                 = useState("");
   const [newBack, setNewBack]                   = useState("");
   const [mobilePanel, setMobilePanel]           = useState("cards");
-  const [confirmDeleteDeck, setConfirmDeleteDeck] = useState(null); // deck name
   const [confirmDeleteCard, setConfirmDeleteCard] = useState(false);
   const [confirmDeleteCardFinal, setConfirmDeleteCardFinal] = useState(false);
+  const [isPlaying, setIsPlaying]               = useState(false);
 
   // Swipe / flip state
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -1014,9 +993,8 @@ function FlashcardsView({ chapter, onBack }) {
     }
   }, [flashcards, storedDecks]);
 
-  const deckCards = selectedDeck ? flashcards.filter(f => f.deck_name === selectedDeck) : [];
-
-  useEffect(() => { setCurrentIndex(0); setIsFlipped(false); setConfirmDeleteCard(false); setConfirmDeleteCardFinal(false); }, [selectedDeck]);
+  // All flashcards for this chapter (single General deck)
+  const deckCards = flashcards;
 
   useEffect(() => {
     if (deckCards.length > 0 && currentIndex >= deckCards.length) {
@@ -1047,6 +1025,30 @@ function FlashcardsView({ chapter, onBack }) {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [currentIndex, deckCards.length, showAddCard]);
+
+  // Auto-play: cycle through cards every 3 s, stop when finished or paused
+  useEffect(() => {
+    if (!isPlaying || deckCards.length < 2) return;
+    const interval = setInterval(() => {
+      setIsFlipped(false);
+      setSwipeDir(1);
+      setCurrentIndex(i => {
+        const next = (i + 1) % deckCards.length;
+        if (next === 0) setIsPlaying(false); // stop after full cycle
+        return next;
+      });
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [isPlaying, deckCards.length]);
+
+  // Reset play when card count changes (e.g. card added/deleted)
+  useEffect(() => {
+    setIsPlaying(false);
+    setCurrentIndex(0);
+    setIsFlipped(false);
+    setConfirmDeleteCard(false);
+    setConfirmDeleteCardFinal(false);
+  }, [chapter.id]);
 
   const buildSystemPrompt = () => {
     const summaryText   = summaryEntries.map(e => e.content).join("\n\n");
@@ -1093,11 +1095,9 @@ ${context}`;
   };
 
   const addFlashcardFromAI = async (front, back) => {
-    const deck = selectedDeck || decks[0];
-    if (!deck) { toast.error("Create or select a deck first"); return; }
-    await base44.entities.Flashcard.create({ chapter_id: chapter.id, deck_name: deck, front, back });
+    await base44.entities.Flashcard.create({ chapter_id: chapter.id, deck_name: "General", front, back });
     queryClient.invalidateQueries({ queryKey: ["flashcards", chapter.id] });
-    toast.success("Flashcard added to " + deck + "!");
+    toast.success("Flashcard added!");
   };
 
   const sendAiMessage = async (content) => {
@@ -1120,35 +1120,11 @@ ${context}`;
     }
   };
 
-  const createDeck = (nameOverride) => {
-    const name = (nameOverride || newDeckName).trim();
-    if (!name) return;
-    if (!storedDecks.includes(name)) saveStoredDecks([...storedDecks, name]);
-    setSelectedDeck(name);
-    setNewDeckName("");
-    setShowNewDeck(false);
-    if (!nameOverride) toast.success(`Deck "${name}" ready — add flashcards below`);
-  };
-
-  const deleteDeck = async (deckName) => {
-    // Delete all flashcards in this deck
-    const toDelete = flashcards.filter(f => f.deck_name === deckName);
-    await Promise.all(toDelete.map(f => base44.entities.Flashcard.delete(f.id)));
-    queryClient.invalidateQueries({ queryKey: ["flashcards", chapter.id] });
-    saveStoredDecks(storedDecks.filter(d => d !== deckName));
-    if (selectedDeck === deckName) {
-      const remaining = storedDecks.filter(d => d !== deckName);
-      setSelectedDeck(remaining[0] ?? null);
-    }
-    setConfirmDeleteDeck(null);
-    toast.success(`Deck "${deckName}" deleted`);
-  };
-
   const addFlashcard = async () => {
-    if (!newFront.trim() || !newBack.trim() || !selectedDeck) return;
+    if (!newFront.trim() || !newBack.trim()) return;
     await base44.entities.Flashcard.create({
       chapter_id: chapter.id,
-      deck_name: selectedDeck,
+      deck_name: "General",
       front: newFront.trim(),
       back: newBack.trim(),
     });
@@ -1187,9 +1163,9 @@ ${context}`;
           <h2 className="text-base font-bold text-slate-800">Flashcards</h2>
           <p className="text-xs text-slate-400 truncate">{chapter.name}</p>
         </div>
-        {!showAddCard && selectedDeck && (
+        {!showAddCard && (
           <Button onClick={() => setShowAddCard(true)} size="sm" variant="outline"
-            className="rounded-xl border-emerald-300 text-emerald-600 hover:bg-emerald-50 flex-shrink-0 hidden md:flex">
+            className="rounded-xl border-emerald-300 text-emerald-600 hover:bg-emerald-50 flex-shrink-0 flex">
             <Plus className="w-3.5 h-3.5 mr-1" />Add Card
           </Button>
         )}
@@ -1214,54 +1190,12 @@ ${context}`;
           "flex-1 flex flex-col overflow-hidden",
           mobilePanel !== "cards" ? "hidden md:flex" : "flex"
         )}>
-          {/* Deck tabs */}
-          <div className="px-4 pt-4 pb-0 flex-shrink-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              {decks.map(deck => (
-                <div key={deck} className="relative group flex items-center">
-                  {confirmDeleteDeck === deck ? (
-                    <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-red-50 border border-red-200">
-                      <span className="text-xs text-red-600 font-medium">Delete "{deck}"?</span>
-                      <button onClick={() => deleteDeck(deck)} className="px-1.5 py-0.5 rounded-lg bg-red-500 text-white text-xs font-semibold hover:bg-red-600 transition">Yes</button>
-                      <button onClick={() => setConfirmDeleteDeck(null)} className="px-1.5 py-0.5 rounded-lg bg-white text-slate-600 text-xs font-semibold hover:bg-slate-100 border border-slate-200 transition">No</button>
-                    </div>
-                  ) : (
-                    <button onClick={() => setSelectedDeck(deck)}
-                      className={cn("pl-4 pr-2 py-1.5 rounded-xl text-sm font-medium transition flex items-center gap-1.5",
-                        selectedDeck === deck
-                          ? "bg-emerald-600 text-white shadow-sm"
-                          : "bg-white border border-slate-200 text-slate-600 hover:border-emerald-300 hover:text-emerald-600"
-                      )}>
-                      {deck}
-                      <span
-                        onClick={(e) => { e.stopPropagation(); setConfirmDeleteDeck(deck); }}
-                        className={cn("rounded-full p-0.5 transition",
-                          selectedDeck === deck
-                            ? "opacity-60 hover:opacity-100 hover:bg-emerald-700"
-                            : "opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:bg-slate-200"
-                        )}
-                      >
-                        <X className="w-3 h-3" />
-                      </span>
-                    </button>
-                  )}
-                </div>
-              ))}
-              {showNewDeck ? (
-                <div className="flex gap-2 items-center">
-                  <Input autoFocus value={newDeckName} onChange={e => setNewDeckName(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter") createDeck(); if (e.key === "Escape") setShowNewDeck(false); }}
-                    placeholder="Deck name" className="rounded-xl h-8 w-36 text-sm" />
-                  <Button size="sm" onClick={createDeck} className="rounded-xl bg-emerald-600 hover:bg-emerald-700 h-8 text-xs px-3">Create</Button>
-                  <Button size="sm" variant="outline" onClick={() => { setShowNewDeck(false); setNewDeckName(""); }} className="rounded-xl h-8 text-xs px-3">✕</Button>
-                </div>
-              ) : (
-                <button onClick={() => setShowNewDeck(true)}
-                  className="px-3 py-1.5 rounded-xl text-sm border border-dashed border-slate-300 text-slate-400 hover:border-emerald-400 hover:text-emerald-600 transition flex items-center gap-1">
-                  <Plus className="w-3.5 h-3.5" />New Deck
-                </button>
-              )}
-            </div>
+          {/* Deck label */}
+          <div className="px-4 pt-4 pb-0 flex-shrink-0 flex items-center gap-2">
+            <span className="px-4 py-1.5 rounded-xl text-sm font-medium bg-emerald-600 text-white shadow-sm">
+              General
+            </span>
+            <span className="text-xs text-slate-400">{deckCards.length} card{deckCards.length !== 1 ? "s" : ""}</span>
           </div>
 
           {/* Add card form */}
@@ -1290,17 +1224,7 @@ ${context}`;
           )}
 
           {/* Card area */}
-          {!selectedDeck ? (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-3">
-                  <CreditCard className="w-7 h-7 text-emerald-200" />
-                </div>
-                <p className="text-slate-500 font-medium">No decks yet</p>
-                <p className="text-sm text-slate-400 mt-1">Create a deck or ask the AI to generate cards</p>
-              </div>
-            </div>
-          ) : deckCards.length === 0 ? (
+          {deckCards.length === 0 ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
                 <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-3">
@@ -1323,18 +1247,19 @@ ${context}`;
                   className="absolute left-0 z-10 p-2.5 rounded-full bg-white border border-slate-200 text-slate-500 hover:border-emerald-300 hover:text-emerald-600 shadow-sm transition disabled:opacity-30">
                   <ChevronLeft className="w-5 h-5" />
                 </button>
-                <div className="w-full px-14 overflow-hidden">
-                  <AnimatePresence custom={swipeDir} mode="wait">
+                {/* overflow-hidden clips both the entering and exiting card so they slide past each other */}
+              <div className="w-full px-14 overflow-hidden relative">
+                  <AnimatePresence custom={swipeDir} mode="popLayout">
                     <motion.div
                       key={currentCard.id}
                       custom={swipeDir}
-                      initial={{ x: swipeDir > 0 ? 280 : -280, opacity: 0, scale: 0.94 }}
-                      animate={{ x: 0, opacity: 1, scale: 1 }}
-                      exit={{ x: swipeDir > 0 ? -280 : 280, opacity: 0, scale: 0.94 }}
-                      transition={{ type: "spring", stiffness: 320, damping: 32 }}
+                      initial={{ x: swipeDir > 0 ? "105%" : "-105%" }}
+                      animate={{ x: 0 }}
+                      exit={{ x: swipeDir > 0 ? "-105%" : "105%" }}
+                      transition={{ type: "spring", stiffness: 400, damping: 38, mass: 0.8 }}
                       drag="x"
                       dragConstraints={{ left: 0, right: 0 }}
-                      dragElastic={0.12}
+                      dragElastic={0.15}
                       onDragStart={() => { wasDragging.current = false; }}
                       onDragEnd={(_, info) => {
                         if (Math.abs(info.offset.x) > 8) wasDragging.current = true;
@@ -1397,6 +1322,25 @@ ${context}`;
                   ))}
                 </div>
               )}
+
+              {/* Play / Pause auto-cycle */}
+              {deckCards.length >= 2 && (
+                <button
+                  onClick={() => { setIsPlaying(p => !p); setCurrentIndex(0); setIsFlipped(false); }}
+                  className={cn(
+                    "mt-4 flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold transition-all shadow-sm",
+                    isPlaying
+                      ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                      : "bg-emerald-600 text-white hover:bg-emerald-700"
+                  )}
+                >
+                  {isPlaying
+                    ? <><Pause className="w-4 h-4" />Pause</>
+                    : <><Play className="w-4 h-4" />Play deck</>
+                  }
+                </button>
+              )}
+
               <div className="flex items-center gap-4 mt-5">
                 {confirmDeleteCardFinal ? (
                   <div className="flex items-center gap-1.5">
@@ -1443,11 +1387,9 @@ ${context}`;
                   <p className="text-xs text-slate-400 mt-1 leading-relaxed">
                     Generate flashcards from your summary & objectives, or ask for suggestions
                   </p>
-                  {selectedDeck && (
-                    <p className="text-xs text-emerald-600 font-medium mt-1.5">
-                      Adding to: <span className="font-bold">{selectedDeck}</span>
-                    </p>
-                  )}
+                  <p className="text-xs text-emerald-600 font-medium mt-1.5">
+                    Adding to: <span className="font-bold">General</span>
+                  </p>
                 </div>
                 <div className="grid grid-cols-1 gap-2">
                   {quickPrompts.map(q => (
@@ -1487,7 +1429,7 @@ ${context}`;
                                 className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 hover:text-emerald-800 transition mt-1"
                               >
                                 <Check className="w-3.5 h-3.5" />
-                                Add to {selectedDeck || "deck"}
+                                Add to deck
                               </button>
                             </div>
                           )
@@ -1519,11 +1461,9 @@ ${context}`;
 
           {/* Input */}
           <div className="bg-white border-t border-slate-100 px-4 py-4 flex-shrink-0">
-            {selectedDeck && (
-              <p className="text-xs text-slate-400 mb-2">
-                Cards will be added to <span className="font-semibold text-emerald-600">{selectedDeck}</span>
-              </p>
-            )}
+            <p className="text-xs text-slate-400 mb-2">
+              Cards will be added to <span className="font-semibold text-emerald-600">General</span>
+            </p>
             <div className="flex gap-2 items-end">
               <textarea
                 value={aiInput}
